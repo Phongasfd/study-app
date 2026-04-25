@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react'; 
 import './Auth.css';
 import { register, googleAuth } from '../lib/api';
 
@@ -24,7 +25,7 @@ const Signup = () => {
 
     try {
       setLoading(true);
-      const result = await register({ username, email, password });
+      const result = await register(username, email, password);
       // Redirect to login or dashboard after successful registration
       if(result) {
         window.location.href = '/login';

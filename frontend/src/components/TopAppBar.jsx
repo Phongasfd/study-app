@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import './NavBar.css';
+import { useAuth } from '../context/AuthContext';
 
 const TopAppBar = () => {
+  const { user, setUser, loading, logout} = useAuth();
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 

@@ -1,22 +1,55 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import './Auth.css';
+import { login } from '../lib/api';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const result= await login(email, password);
+      window.location.href = '/'; // redirect to home page on successful login
+    } catch (error) {
+      setError(error.message || "Login failed");
+    }
+  };
+
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Log in to your Deep Focus account</p>
 
-        <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="email">Email</label>
-            <input type="email" id="email" placeholder="student@university.edu" required />
+            <input 
+              type="email" 
+              id="email" 
+              placeholder="student@university.edu" 
+              required 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input type="password" id="password" placeholder="••••••••" required />
+            <input 
+              type="password" 
+              id="password" 
+              placeholder="••••••••" 
+              required 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
+          {error && <p className="auth-error">{error}</p>}
           <button type="submit" className="auth-submit">Log In</button>
         </form>
 

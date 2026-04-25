@@ -1,6 +1,7 @@
 package com.namphong.backend.security;
 
 import com.namphong.backend.security.oauth2.OAuth2SuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,11 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth ->
                 auth.requestMatchers("/api/auth/me").authenticated().anyRequest().permitAll());
 
+        http.exceptionHandling(e -> e
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                })
+        ); // when user is not authenticated but call auth route, spring security will send 401
         http.oauth2Login(oauth2 -> oauth2.successHandler(successHandler));
 
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

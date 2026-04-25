@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const load = async () => {
       try {
         // try to refresh tokens first
-        await axiosClient.get('/auth/refresh-token', { withCredentials: true }).catch(() => {});
+        // await axiosClient.get('/auth/refresh-token', { withCredentials: true }).catch(() => {});
         // if error occurs, it means user is not authenticated, so we can just set user to null 
         const res = await axiosClient.get('/auth/me');
         if (mounted) setUser(res.data.user);
