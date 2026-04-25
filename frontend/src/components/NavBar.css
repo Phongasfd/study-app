@@ -1,0 +1,92 @@
+/* NavBar.css */
+
+/* Top App Bar */
+.top-app-bar-left {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing-unit) * 1.5);
+}
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background-color: var(--color-surface-container-highest);
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-title {
+  font-family: var(--font-family-h);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--color-primary-container);
+  letter-spacing: -0.02em;
+}
+
+.top-app-bar-right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing-unit) * 2);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-outline);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  opacity: 0.8;
+}
+
+/* Bottom Nav Bar */
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--color-outline);
+  padding: calc(var(--spacing-unit) * 0.5) calc(var(--spacing-unit) * 2);
+  border-radius: var(--radius-xl);
+  transition: all 0.15s ease-in-out;
+}
+
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+.nav-item:hover {
+  background-color: rgba(0,0,0,0.02);
+}
+
+.nav-item-active {
+  background-color: rgba(26, 60, 52, 0.05); /* primary-container/5 */
+  color: var(--color-primary-container);
+}
+
+.nav-item-active:hover {
+  background-color: rgba(26, 60, 52, 0.08);
+}
+
+.nav-icon {
+  font-size: 24px;
+  margin-bottom: calc(var(--spacing-unit) * 0.5);
+}
+
+.nav-label {
+  font-family: var(--font-family-h);
+  font-size: 12px;
+  font-weight: 600;
+}
