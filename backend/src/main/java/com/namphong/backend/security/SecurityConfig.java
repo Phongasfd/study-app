@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @RequiredArgsConstructor
@@ -17,7 +18,12 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable());
+        http.csrf(csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()) // save csrf token in cookie
+                .ignoringRequestMatchers(
+                        "/api/auth/**",
+                        "/oauth2/**" // dont check csrf for these routes
+                ));
         http.cors(cors -> {});
         http.authorizeHttpRequests(auth ->
                 auth.requestMatchers("/api/auth/me").authenticated().anyRequest().permitAll());
@@ -30,7 +36,7 @@ public class SecurityConfig {
         http.oauth2Login(oauth2 -> oauth2.successHandler(successHandler));
 
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        // add jwt filter before usernamepasswordauthenticationfilter
+        // add jwt filter before UsernamePasswordAuthenticationFilter
         return http.build();
     }
 }

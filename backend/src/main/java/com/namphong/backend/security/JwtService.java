@@ -23,7 +23,7 @@ public class JwtService {
 
     public String generateToken(UUID userId){
         return Jwts.builder()
-                .subject(userId.toString())
+                .subject(userId.toString()) // payload
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 15 * 60 * 1000))
                 .signWith(SECRET)

@@ -9,27 +9,28 @@ const axiosClient = axios.create({
   }
 });
 
-// const axiosRaw = axios.create({
-//   baseURL: import.meta.env.VITE_API_BASE_URL,
-//   withCredentials: true,
-// });
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`; // Cookie: "JWT=xyz; XSRF-TOKEN=abc123; theme=dark"
+  const parts = value.split(`; ${name}=`); // Value: value = "; JWT=xyz; XSRF-TOKEN=abc123"
+  // // [
+  //   "; JWT=xyz",
+  //   "abc123"
+  // ] --> parts
+  
+  if (parts.length === 2) { // find csrf cookie
+    return parts.pop().split(';').shift(); // pop the last part and get token 
+  } 
+  
+  return null;
+}
 
-// let csrfToken = null;
+axiosClient.interceptors.request.use((config) => {
+  const csrfToken = getCookie("XSRF-TOKEN");
 
-// export const fetchCsrfToken = async () => {
-//   const res = await axiosRaw.get("/csrf-token");
-//   csrfToken = res.data.csrfToken;
-//   return csrfToken;
-// };
+  if (csrfToken) {
+    config.headers["X-XSRF-TOKEN"] = csrfToken;
+  }
 
-// axiosClient.interceptors.request.use(async (config) => {
-//   if (!csrfToken) {
-//     await fetchCsrfToken();
-//   }
-
-//   config.headers["X-CSRF-Token"] = csrfToken;
-
-//   return config;
-// });
-
+  return config;
+});
 export default axiosClient;
