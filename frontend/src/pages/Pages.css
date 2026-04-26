@@ -184,8 +184,9 @@
 .subject-chip {
   display: inline-flex;
   align-items: center;
+  height: 40px;
   gap: 8px;
-  padding: 6px 6px 6px 16px;
+  padding: 0 16px;
   border-radius: var(--radius-full);
   background-color: var(--color-primary-fixed);
   color: var(--color-on-primary-fixed);
@@ -194,6 +195,7 @@
   border: none;
   font-family: var(--font-family-body);
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .subject-chip:hover {
@@ -204,7 +206,6 @@
   background-color: transparent;
   border: 1px dashed var(--color-outline-variant);
   color: var(--color-outline);
-  padding: 8px 16px;
   cursor: pointer;
 }
 
@@ -245,6 +246,41 @@
   font-size: 16px;
 }
 
-.subject-chip .subject-icon {
+.subject-chip .subject-icon,
+.subject-chip .delete-subject-btn {
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-on-primary-fixed);
+  transition: color 0.2s ease;
+}
+
+.delete-subject-btn:hover {
+  color: var(--color-error);
+}
+
+.add-subject-input-container {
+  min-width: 160px;
+}
+
+.add-subject-input {
+  background: transparent;
+  border: none;
+  color: var(--color-on-primary-fixed);
+  font-family: var(--font-family-body);
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.add-subject-input::placeholder {
+  color: var(--color-on-primary-fixed);
+  opacity: 0.6;
 }

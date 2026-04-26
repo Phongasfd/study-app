@@ -17,7 +17,7 @@ export const googleAuth = () => {
   window.location.href = 'http://localhost:8080/oauth2/authorization/google';
 }
 
-export const login =  async (email, password) => {
+export const login = async (email, password) => {
   try {
     const response = await axiosClient.post('/auth/login', {
       email,
@@ -25,7 +25,33 @@ export const login =  async (email, password) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data || error.message); 
+    throw new Error(error.response?.data || error.message);
   }
-
 }
+
+export const getSubjects = async () => {
+  try {
+    const response = await axiosClient.get('/subject/');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data || error.message);
+  }
+};
+
+export const createSubject = async (name) => {
+  try {
+    const response = await axiosClient.post('/subject/', { name });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data || error.message);
+  }
+};
+
+export const deleteSubject = async (id) => {
+  try {
+    const response = await axiosClient.delete(`/subject/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data || error.message);
+  }
+};

@@ -21,7 +21,7 @@ const getCookie = (name) => {
     return parts.pop().split(';').shift(); // pop the last part and get token 
   } 
   
-  return null;
+  return null; 
 }
 
 axiosClient.interceptors.request.use((config) => {
