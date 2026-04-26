@@ -65,7 +65,11 @@ public class UserService {
         return new UserResponseDTO(saved.getId(), saved.getEmail(), saved.getUsername(), saved.getCreatedAt());
     }
 
-    public Optional<UserResponseDTO> findById(UUID userId) {
+    public Optional<UserResponseDTO> findUserById(UUID userId) {
         return userRepository.findById(userId).map(user -> new UserResponseDTO(user.getId(), user.getEmail(), user.getUsername(), user.getCreatedAt()));
+    }
+
+    public UserEntity getUserEntityById(UUID userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

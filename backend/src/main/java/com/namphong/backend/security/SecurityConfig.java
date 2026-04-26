@@ -26,7 +26,7 @@ public class SecurityConfig {
                 ));
         http.cors(cors -> {});
         http.authorizeHttpRequests(auth ->
-                auth.requestMatchers("/api/auth/me").authenticated().anyRequest().permitAll());
+                auth.requestMatchers("/api/auth/me", "/api/subject/**").authenticated().anyRequest().permitAll());
 
         http.exceptionHandling(e -> e
                 .authenticationEntryPoint((request, response, authException) -> {

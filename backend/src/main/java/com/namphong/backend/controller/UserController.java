@@ -56,7 +56,7 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> getUser(HttpServletRequest request){
         if(request.getUserPrincipal() == null) return ResponseEntity.status(401).build();
         UUID userId = UUID.fromString(request.getUserPrincipal().getName());
-        return userService.findById(userId).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        return userService.findUserById(userId).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
 
 //       .map(ResponseEntity::ok) = map(user -> ResponseEntity.ok(user)) (method reference)
     }
