@@ -32,7 +32,7 @@ const Stats = () => {
           <div className="chart-container">
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '60%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">4.2h</div>
                 </div>
               </div>
@@ -40,7 +40,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '85%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">6.0h</div>
                 </div>
               </div>
@@ -48,7 +48,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '45%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">3.1h</div>
                 </div>
               </div>
@@ -56,7 +56,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '70%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">4.9h</div>
                 </div>
               </div>
@@ -64,7 +64,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '95%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">6.7h</div>
                 </div>
               </div>
@@ -72,7 +72,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '40%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">2.8h</div>
                 </div>
               </div>
@@ -80,7 +80,7 @@ const Stats = () => {
             </div>
             <div className="bar-group">
               <div className="bar-track">
-                <div className="bar-fill" style={{ height: '65%' }}>
+                <div className="bar-fill">
                   <div className="tooltip">4.6h</div>
                 </div>
               </div>
@@ -131,7 +131,7 @@ const Stats = () => {
                 <span className="font-bold text-on-surface-variant">12.5h</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill bg-orange" style={{ width: '38%' }}></div>
+                <div className="progress-bar-fill bg-orange"></div>
               </div>
               <p className="label-sm text-on-surface-variant">Algebra & Calculus focuses</p>
             </div>
@@ -148,7 +148,7 @@ const Stats = () => {
                 <span className="font-bold text-on-surface-variant">10.2h</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill bg-blue" style={{ width: '31%' }}></div>
+                <div className="progress-bar-fill bg-blue"></div>
               </div>
               <p className="label-sm text-on-surface-variant">Quantum Physics modules</p>
             </div>
@@ -165,7 +165,7 @@ const Stats = () => {
                 <span className="font-bold text-on-surface-variant">9.7h</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill bg-emerald" style={{ width: '29%' }}></div>
+                <div className="progress-bar-fill bg-emerald"></div>
               </div>
               <p className="label-sm text-on-surface-variant">Mandarin vocabulary & grammar</p>
             </div>

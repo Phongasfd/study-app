@@ -7,6 +7,13 @@
   gap: calc(var(--spacing-unit) * 1.5);
 }
 
+.app-title-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+}
+
 .profile-avatar {
   width: 32px;
   height: 32px;
@@ -33,6 +40,26 @@
   display: flex;
   align-items: center;
   gap: calc(var(--spacing-unit) * 2);
+}
+
+.auth-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.user-profile-info {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing-unit) * 1.5);
+}
+
+.username-display {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-label-sm);
+  font-weight: var(--font-weight-label-sm);
+  color: var(--color-on-surface-variant);
+  letter-spacing: var(--letter-spacing-label-sm);
+  text-transform: uppercase;
 }
 
 .icon-btn {
