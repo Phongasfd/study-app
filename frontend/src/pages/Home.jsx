@@ -2,8 +2,22 @@ import { useState, useEffect } from 'react';
 import { getSubjects, createSubject, deleteSubject } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import './Pages.css';
+import { useTimer } from '../context/TimerContext';
 
 const Home = () => {
+  const {
+    timeElapsed,
+    isActive,
+    activeSubject,
+    start,
+    pause,
+    resume,
+    stop,
+    formatTime,
+    circumference,
+    strokeDashoffset,
+  } = useTimer();
+
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]); // for subjects
   const [isAdding, setIsAdding] = useState(false); // for adding subjects
@@ -65,26 +79,35 @@ const Home = () => {
         <div className="timer-circle-container">
           <div className="timer-track"></div>
           <svg className="timer-svg" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="48" className="timer-progress"></circle>
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="48" 
+              className="timer-progress"
+              style={{ strokeDashoffset }}
+            ></circle>
           </svg>
           <div className="timer-display">
-            <span className="timer-text">25:00</span>
-            <span className="timer-label">Advanced Calculus</span>
+            <span className="timer-text">{formatTime(timeElapsed)}</span>
+            <span className="timer-label">{activeSubject ? activeSubject.name : 'No Subject'}</span>
           </div>
         </div>
 
         {/* Interaction Controls */}
         <div className="timer-controls">
-          <button className="icon-btn-large">
-            <span className="material-symbols-outlined">settings</span>
+          <button className="btn-start-focus" onClick={() => {
+            if (isActive) {
+              pause();
+            } else if (activeSubject) {
+              resume();
+            }
+          }}>
+            <span className="material-symbols-outlined filled">
+              {isActive ? 'pause' : 'play_arrow'}
+            </span>
+            {isActive ? 'Pause Focus' : 'Resume Focus'}
           </button>
-          <button className="btn-start-focus">
-            <span className="material-symbols-outlined filled">play_arrow</span>
-            Start Focus
-          </button>
-          <button className="icon-btn-large">
-            <span className="material-symbols-outlined">refresh</span>
-          </button>
+          
         </div>
       </section>
 
@@ -103,7 +126,12 @@ const Home = () => {
                 <span className="material-symbols-outlined">delete</span>
               </button>
               <span className="subject-name">{subject.name}</span>
-              <button className="subject-play-btn">
+              <button 
+                className="subject-play-btn"
+                onClick={() => {
+                  start(subject);
+                }}
+              >
                 <span className="material-symbols-outlined filled">play_arrow</span>
               </button>
             </div>

@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AIAssistant from './pages/AIAssistant';
 import { AuthProvider } from './context/AuthContext';
+import { TimerProvider } from './context/TimerContext';
 import './App.css';
 
 const AppContent = () => {
@@ -37,9 +38,11 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <TimerProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </TimerProvider>
     </AuthProvider>
 
   );
