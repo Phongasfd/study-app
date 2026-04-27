@@ -1,36 +1,101 @@
 import './Groups.css';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { createGroup, getGroupsJoined } from '../lib/api';
 
 const Groups = () => {
+  const { user } = useAuth();
+  const [showModal, setShowModal] = useState(false); // Modal visibility state
+  const [formData, setFormData] = useState({ 
+    name: '',
+    maxMembers: ''
+  }); // Form data state
+  const [isLoading, setIsLoading] = useState(false); // Loading state for form submission 
+
+  const handleOpenModal = () => {
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+    setShowModal(true);
+  }; // Open modal and check authentication
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setFormData({ name: '', maxMembers: '' });
+  }; // Close modal and reset form data
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }; // 
+
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      alert('Please enter a group name');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await createGroup(formData.name, formData.maxMembers);
+      handleCloseModal();
+      // Refresh groups list or navigate
+      window.location.reload();
+    } catch (error) {
+      console.error('Error creating group:', error);
+      alert('Failed to create group. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const [groupsJoined, setGroupsJoined] = useState([]);
+
+  useEffect(() => {
+      // Fetch groups joined by the user on component mount
+      const fetchGroups = async () => {
+        try {
+          const groups = await getGroupsJoined();
+          setGroupsJoined(groups);
+        } catch (error) {
+          console.error('Error fetching groups:', error);
+        }
+      };
+
+      fetchGroups();
+  }, []);
+
   return (
     <div className="groups-page">
       {/* My Groups Section */}
       <section className="groups-section">
         <div className="section-header">
           <h2 className="h3 text-on-background">My Groups</h2>
-          <button className="create-group-btn">
+          <button className="create-group-btn" onClick={handleOpenModal}>
             <span className="material-symbols-outlined">add</span>
             Create New
           </button>
         </div>
         
         <div className="groups-grid">
-          {/* Group Card 1 */}
-          <div className="group-card">
-            <div className="group-card-header">
-              <div className="icon-badge bg-primary-container text-white">
-                <span className="material-symbols-outlined">auto_stories</span>
-              </div>
+          {groupsJoined.map((group) => (
+            <div className="group-card" key={group.id}>
+              <div className="group-card-header">
+                <div className="icon-badge bg-primary-container text-white">
+                  <span className="material-symbols-outlined">auto_stories</span>
+                </div>
               <span className="status-badge bg-secondary-container text-on-secondary-container">Active</span>
             </div>
-            <h3 className="body-lg font-h h3-margin">Advanced Calculus II</h3>
+            <h3 className="body-lg font-h h3-margin">{group.name}</h3>
             <div className="group-stats">
               <div className="stat-item">
                 <span className="material-symbols-outlined icon-sm">group</span>
-                <span className="body-md text-sm">12 Members</span>
-              </div>
-              <div className="stat-item">
-                <span className="material-symbols-outlined icon-sm">schedule</span>
-                <span className="body-md text-sm">4.5h Daily Avg</span>
+                <span className="body-md text-sm">{group.maxMembers} Members</span>
               </div>
             </div>
             <button className="btn-enter">
@@ -38,51 +103,8 @@ const Groups = () => {
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
           </div>
+          ))}
 
-          {/* Group Card 2 */}
-          <div className="group-card">
-            <div className="group-card-header">
-              <div className="icon-badge bg-tertiary-container text-white">
-                <span className="material-symbols-outlined">history_edu</span>
-              </div>
-            </div>
-            <h3 className="body-lg font-h h3-margin">Renaissance Art History</h3>
-            <div className="group-stats">
-              <div className="stat-item">
-                <span className="material-symbols-outlined icon-sm">group</span>
-                <span className="body-md text-sm">8 Members</span>
-              </div>
-              <div className="stat-item">
-                <span className="material-symbols-outlined icon-sm">schedule</span>
-                <span className="body-md text-sm">2.8h Daily Avg</span>
-              </div>
-            </div>
-            <button className="btn-enter">
-              Enter Group
-              <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
-          </div>
-
-          {/* Group Card 3 (Bento Style Variation) */}
-          <div className="group-card-featured">
-            <div>
-              <div className="featured-badge">
-                <span className="material-symbols-outlined filled text-secondary-container">star</span>
-                <span className="label-sm uppercase text-on-primary-container tracking-wider">Top Performing</span>
-              </div>
-              <h3 className="h3 h3-margin">Deep Work: LSAT Prep</h3>
-              <p className="body-md text-sm text-on-primary-container">You're in the top 5% of contributors this week.</p>
-            </div>
-            <div className="featured-bottom">
-              <div>
-                <div className="featured-value text-secondary-container">6.2h</div>
-                <div className="featured-label text-on-primary-container">Daily Avg</div>
-              </div>
-              <button className="btn-featured-enter">
-                <span className="material-symbols-outlined">login</span>
-              </button>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -205,6 +227,74 @@ const Groups = () => {
           </div>
         </div>
       </section>
+
+      {/* Create Group Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="h3 text-on-background">Create New Group</h2>
+              <button 
+                className="modal-close-btn" 
+                onClick={handleCloseModal}
+                aria-label="Close modal"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGroup} className="modal-form">
+              <div className="form-group">
+                <label htmlFor="name" className="label-sm text-on-surface-variant">
+                  Group Name *
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Advanced Calculus II"
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="subject" className="label-sm text-on-surface-variant">
+                  Max Members 
+                </label>
+                <input
+                  type="text"
+                  id="maxMembers"
+                  name="maxMembers"
+                  value={formData.maxMembers}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 20"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleCloseModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Creating...' : 'Create Group'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,70 @@
+package com.namphong.backend.service;
+
+import com.namphong.backend.dto.StudyGroupRequest;
+import com.namphong.backend.entity.GroupMember;
+import com.namphong.backend.entity.StudyGroup;
+import com.namphong.backend.entity.UserEntity;
+import com.namphong.backend.repository.GroupMemberRepository;
+import com.namphong.backend.repository.GroupRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class GroupService {
+    private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
+
+    @Transactional
+    public StudyGroup createGroup(StudyGroupRequest request, UserEntity owner) {
+        StudyGroup group = new StudyGroup();
+        group.setName(request.getName());
+        group.setOwner(owner);
+        group.setMaxMembers(request.getMaxMembers());
+        group.setCreatedAt(LocalDateTime.now());
+        
+        StudyGroup savedGroup = groupRepository.save(group);
+
+        // Add owner as the first member
+        GroupMember member = new GroupMember();
+        member.setGroup(savedGroup);
+        member.setUser(owner);
+        member.setJoinedAt(LocalDateTime.now());
+        groupMemberRepository.save(member);
+
+        return savedGroup;
+    }
+
+    public void deleteGroup(UUID groupId, UUID userId) {
+        groupRepository.findById(groupId).ifPresent(group -> {
+            if (group.getOwner().getId().equals(userId)) {
+                groupRepository.delete(group);
+            } else {
+                throw new RuntimeException("Only the owner can delete the group");
+            }
+        });
+    }
+
+    public StudyGroup updateGroupName(UUID groupId, String newName, UUID userId) {
+        return groupRepository.findById(groupId).map(group -> {
+            if (group.getOwner().getId().equals(userId)) {
+                group.setName(newName);
+                return groupRepository.save(group);
+            } else {
+                throw new RuntimeException("Only the owner can update the group name");
+            }
+        }).orElseThrow(() -> new RuntimeException("Group not found"));
+    }
+
+    public List<StudyGroup> getJoinedGroups(UUID userId) {
+        return groupMemberRepository.findAllByUserId(userId)
+                .stream()
+                .map(GroupMember::getGroup)
+                .toList();
+    }
+}

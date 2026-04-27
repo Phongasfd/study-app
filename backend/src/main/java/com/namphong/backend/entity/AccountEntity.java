@@ -1,5 +1,6 @@
 package com.namphong.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,6 +22,7 @@ public class AccountEntity {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false) // user_id column, take ownership of relationship
+    @JsonIgnore
     private UserEntity user;
 
     @Column(nullable = false)

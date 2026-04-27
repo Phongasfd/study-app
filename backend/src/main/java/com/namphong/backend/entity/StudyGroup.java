@@ -1,5 +1,6 @@
 package com.namphong.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +22,7 @@ public class StudyGroup {
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
+    @JsonIgnore
     private UserEntity owner;
 
     private Integer maxMembers;
