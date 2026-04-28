@@ -65,6 +65,7 @@ public class GroupService {
         return groupMemberRepository.findAllByUserId(userId)
                 .stream()
                 .map(GroupMember::getGroup)
+                // groupMember -> groupMember.getGroup()
                 .toList();
     }
 

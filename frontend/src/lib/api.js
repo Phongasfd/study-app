@@ -225,3 +225,45 @@ export const searchGroups = async (name) => {
     throw new Error(message);
   }
 };
+
+export const createStudySession = async (startTime) => {
+  try {
+    const response = await axiosClient.post('/study-session/', { startTime });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const completeStudySession = async (id, endTime) => {
+  try {
+    const response = await axiosClient.patch(`/study-session/${id}/complete`, { endTime });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const addSubjectToSession = async (sessionId, subjectId) => {
+  try {
+    const response = await axiosClient.post('/session-subject/', { sessionId, subjectId });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};

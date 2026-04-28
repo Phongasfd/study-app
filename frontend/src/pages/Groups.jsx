@@ -12,10 +12,10 @@ const Groups = () => {
     maxMembers: ''
   }); // Form data state
   const [isLoading, setIsLoading] = useState(false); // Loading state for form submission 
-   const [groupsJoined, setGroupsJoined] = useState([]);
-  const [trendingGroups, setTrendingGroups] = useState([]);
-  const [groupSearchQuery, setGroupSearchQuery] = useState('');
-  const [isSearchingGroups, setIsSearchingGroups] = useState(false);
+  const [groupsJoined, setGroupsJoined] = useState([]); // for my group section
+  const [trendingGroups, setTrendingGroups] = useState([]); // for trending group section 
+  const [groupSearchQuery, setGroupSearchQuery] = useState(''); // for group search query
+  const [isSearchingGroups, setIsSearchingGroups] = useState(false); // for search loading
   const navigate = useNavigate();
 
   const handleEnterGroup = (id) => {
@@ -30,7 +30,7 @@ const Groups = () => {
       console.error('Error joining group:', error);
       alert('Failed to join group: ' + error.message);
     }
-  };
+  }; // for user want to join group 
 
   const handleOpenModal = () => {
     if (!user) {
@@ -38,12 +38,12 @@ const Groups = () => {
       return;
     }
     setShowModal(true);
-  }; // Open modal and check authentication
+  }; // Open create new group modal and check authentication
 
   const handleCloseModal = () => {
     setShowModal(false);
     setFormData({ name: '', maxMembers: '' });
-  }; // Close modal and reset form data
+  }; // Close create new group modal and reset form data
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -51,7 +51,7 @@ const Groups = () => {
       ...prev,
       [name]: value
     }));
-  }; // 
+  }; // handle change in create group form 
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
@@ -62,17 +62,17 @@ const Groups = () => {
 
     setIsLoading(true);
     try {
-      await createGroup(formData.name, Number(formData.maxMembers));
+     const newGroup = await createGroup(formData.name, Number(formData.maxMembers));
       handleCloseModal();
       // Refresh groups list or navigate
-      window.location.reload();
+      setGroupsJoined(prev => [...prev, newGroup]); 
     } catch (error) {
       console.error('Error creating group:', error);
       alert('Failed to create group. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }; // handle create group form submission 
 
   const fetchTrendingGroups = async () => {
     try {
@@ -81,7 +81,7 @@ const Groups = () => {
     } catch (error) {
       console.error('Error fetching trending groups:', error);
     }
-  };
+  }; // handle fetch trending group 
 
   useEffect(() => {
       const fetchGroups = async () => {
@@ -93,8 +93,8 @@ const Groups = () => {
         }
       };
 
-      fetchGroups();
-      fetchTrendingGroups();
+      fetchGroups(); // fetch groups joined
+      fetchTrendingGroups(); // fetch groups trending  
   }, []);
 
   useEffect(() => {
@@ -102,6 +102,7 @@ const Groups = () => {
       if (groupSearchQuery === '') fetchTrendingGroups();
       return;
     }
+    // if query is empty, fetch trending groups 
 
     const delayDebounceFn = setTimeout(async () => {
       setIsSearchingGroups(true);
@@ -113,7 +114,7 @@ const Groups = () => {
       } finally {
         setIsSearchingGroups(false);
       }
-    }, 500);
+    }, 1000);  // only call api when user stop typing for 1000ms 
 
     return () => clearTimeout(delayDebounceFn);
   }, [groupSearchQuery]);

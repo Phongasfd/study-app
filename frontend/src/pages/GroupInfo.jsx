@@ -7,18 +7,18 @@ import { useAuth } from '../context/AuthContext';
 
 
 const GroupInfo = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // group id from url 
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
-  const [message, setMessage] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const { user: currentUser } = useAuth(); // get user from userAuth and assign it to currentUser variable  
+  const [message, setMessage] = useState(''); // message state for the chat box 
+  const [showSearch, setShowSearch] = useState(false); // state to control the user search overlay visibility 
+  const [searchQuery, setSearchQuery] = useState(''); // state for the search query 
+  const [searchResults, setSearchResults] = useState([]); // state for the search results 
+  const [isSearching, setIsSearching] = useState(false); // state to control the search loader visibility 
   
-  const [group, setGroup] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [group, setGroup] = useState(null); // state for the group data 
+  const [members, setMembers] = useState([]); // state for group members
+  const [isLoading, setIsLoading] = useState(true); // state for loading 
 
   // Mock Data for ranking and chat (as requested to not touch ranking/stats)
   const ranking = [
@@ -67,7 +67,7 @@ const GroupInfo = () => {
       } else {
         setSearchResults([]);
       }
-    }, 500);
+    }, 1000); // only call api after user stop typing for 1000ms 
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
@@ -79,9 +79,9 @@ const GroupInfo = () => {
       handleCloseSearch();
       fetchGroupInfo(); // Refresh member list
     } catch (error) {
-      alert(error.message);
+      console.error(error.message);
     }
-  };
+  }; 
 
   const handleRemoveMember = async (userId) => {
     if (!window.confirm('Are you sure you want to remove this member?')) return;
@@ -90,7 +90,7 @@ const GroupInfo = () => {
       alert('Member removed successfully');
       fetchGroupInfo(); // Refresh member list
     } catch (error) {
-      alert(error.message);
+      console.error(error.message);
     }
   };
 
@@ -100,7 +100,7 @@ const GroupInfo = () => {
       await removeMember(group.id, currentUser.id);
       navigate('/groups');
     } catch (error) {
-      alert(error.message);
+      console.error(error.message);
     }
   };
 
@@ -110,7 +110,7 @@ const GroupInfo = () => {
       await deleteGroup(group.id);
       navigate('/groups');
     } catch (error) {
-      alert(error.message);
+      console.error(error.message);
     }
   };
 

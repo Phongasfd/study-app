@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { createStudySession, completeStudySession, addSubjectToSession } from "../lib/api";
 
 const TimerContext = createContext();
 
@@ -37,6 +38,11 @@ export const TimerProvider = ({ children }) => {
     return saved ? JSON.parse(saved).lastResetDate : new Date().toDateString();
   });
 
+  const [currentSessionId, setCurrentSessionId] = useState(() => {
+    const saved = localStorage.getItem("timer");
+    return saved ? JSON.parse(saved).currentSessionId : null;
+  });
+
   const [now, setNow] = useState(Date.now()); // trigger re-render
 
   // save to localStorage on state change
@@ -49,9 +55,10 @@ export const TimerProvider = ({ children }) => {
         isActive,
         activeSubject,
         lastResetDate,
+        currentSessionId,
       })
     );
-  }, [startTime, accumulatedTime, isActive, activeSubject, lastResetDate]);
+  }, [startTime, accumulatedTime, isActive, activeSubject, lastResetDate, currentSessionId]);
 
   // Check for midnight reset on mount (if page was closed during midnight)
   useEffect(() => {
@@ -82,31 +89,72 @@ export const TimerProvider = ({ children }) => {
 
   // Actions
 
-  const start = (subject) => {
+  const start = async (subject) => {
     setActiveSubject(subject);
     if (!isActive) {
-      setStartTime(Date.now());
+      const nowTime = Date.now();
+      setStartTime(nowTime);
       setIsActive(true);
+
+      try {
+        const session = await createStudySession(new Date(nowTime).toISOString());
+        setCurrentSessionId(session.id);
+        if (subject) {
+          await addSubjectToSession(session.id, subject.id);
+        }
+      } catch (error) {
+        console.error("Failed to start study session in DB:", error);
+      }
     }
   };
 
-  const pause = () => {
+  const pause = async () => {
     if (!isActive) return;
-    setAccumulatedTime((prev) => prev + (Date.now() - startTime));
+    const nowTime = Date.now();
+    setAccumulatedTime((prev) => prev + (nowTime - startTime));
     setIsActive(false);
+
+    if (currentSessionId) {
+      try {
+        await completeStudySession(currentSessionId, new Date(nowTime).toISOString());
+        setCurrentSessionId(null);
+      } catch (error) {
+        console.error("Failed to complete study session in DB:", error);
+      }
+    }
   };
 
-  const resume = () => {
+  const resume = async () => {
     if (isActive) return;
-    setStartTime(Date.now());
+    const nowTime = Date.now();
+    setStartTime(nowTime);
     setIsActive(true);
+
+    try {
+      const session = await createStudySession(new Date(nowTime).toISOString());
+      setCurrentSessionId(session.id);
+      if (activeSubject) {
+        await addSubjectToSession(session.id, activeSubject.id);
+      }
+    } catch (error) {
+      console.error("Failed to resume study session in DB:", error);
+    }
   };
 
-  const stop = () => {
+  const stop = async () => {
+    if (isActive && currentSessionId) {
+      const nowTime = Date.now();
+      try {
+        await completeStudySession(currentSessionId, new Date(nowTime).toISOString());
+      } catch (error) {
+        console.error("Failed to complete study session in DB:", error);
+      }
+    }
     setStartTime(null);
     setAccumulatedTime(0);
     setIsActive(false);
     setActiveSubject(null);
+    setCurrentSessionId(null);
     localStorage.removeItem("timer");
   };
 
