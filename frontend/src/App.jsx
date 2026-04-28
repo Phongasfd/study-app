@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Stats from './pages/Stats';
 import Groups from './pages/Groups';
 import Ranking from './pages/Ranking';
+import GroupInfo from './pages/GroupInfo';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AIAssistant from './pages/AIAssistant';
@@ -25,6 +26,7 @@ const AppContent = () => {
           <Route path="/assistant" element={<AIAssistant />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/groups" element={<Groups />} />
+          <Route path="/groups/:id" element={<GroupInfo />} />
           <Route path="/ranking" element={<Ranking />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

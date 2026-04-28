@@ -32,6 +32,11 @@ export const TimerProvider = ({ children }) => {
     return saved ? JSON.parse(saved).activeSubject : null;
   });
 
+  const [lastResetDate, setLastResetDate] = useState(() => {
+    const saved = localStorage.getItem("timer");
+    return saved ? JSON.parse(saved).lastResetDate : new Date().toDateString();
+  });
+
   const [now, setNow] = useState(Date.now()); // trigger re-render
 
   // save to localStorage on state change
@@ -43,9 +48,19 @@ export const TimerProvider = ({ children }) => {
         accumulatedTime,
         isActive,
         activeSubject,
+        lastResetDate,
       })
     );
-  }, [startTime, accumulatedTime, isActive, activeSubject]);
+  }, [startTime, accumulatedTime, isActive, activeSubject, lastResetDate]);
+
+  // Check for midnight reset on mount (if page was closed during midnight)
+  useEffect(() => {
+    const today = new Date().toDateString();
+    if (lastResetDate !== today) {
+      stop();
+      setLastResetDate(today);
+    }
+  }, [lastResetDate]);
 
   // Timer render loop 
   useEffect(() => {
@@ -100,14 +115,17 @@ export const TimerProvider = ({ children }) => {
     let timeoutId;
 
     const scheduleReset = () => {
-      const now = new Date();
-      const nextMidnight = new Date(now);
+      const nowTime = new Date();
+      const nextMidnight = new Date(nowTime);
       nextMidnight.setHours(24, 0, 0, 0);
+
+      const timeToMidnight = nextMidnight - nowTime;
 
       timeoutId = setTimeout(() => {
         stop(); // reset toàn bộ
+        setLastResetDate(new Date().toDateString());
         scheduleReset();
-      }, nextMidnight - now);
+      }, timeToMidnight);
     };
 
     scheduleReset();

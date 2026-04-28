@@ -67,4 +67,21 @@ public class GroupService {
                 .map(GroupMember::getGroup)
                 .toList();
     }
+
+    public List<StudyGroup> getRandomGroups(int limit) {
+        return groupRepository.findRandomGroups(limit);
+    }
+
+    public StudyGroup getGroupById(UUID groupId) {
+        return groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+    }
+
+    public List<GroupMember> getGroupMembers(UUID groupId) {
+        return groupMemberRepository.findAllByGroupId(groupId);
+    }
+
+    public List<StudyGroup> searchGroups(String name) {
+        return groupRepository.findByNameContainingIgnoreCase(name);
+    }
 }

@@ -1,7 +1,8 @@
 import './Groups.css';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createGroup, getGroupsJoined } from '../lib/api';
+import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup } from '../lib/api';
 
 const Groups = () => {
   const { user } = useAuth();
@@ -11,6 +12,25 @@ const Groups = () => {
     maxMembers: ''
   }); // Form data state
   const [isLoading, setIsLoading] = useState(false); // Loading state for form submission 
+   const [groupsJoined, setGroupsJoined] = useState([]);
+  const [trendingGroups, setTrendingGroups] = useState([]);
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [isSearchingGroups, setIsSearchingGroups] = useState(false);
+  const navigate = useNavigate();
+
+  const handleEnterGroup = (id) => {
+    navigate(`/groups/${id}`);
+  };
+
+  const handleJoinGroup = async (id) => {
+    try {
+      await joinGroup(id);
+      navigate(`/groups/${id}`);
+    } catch (error) {
+      console.error('Error joining group:', error);
+      alert('Failed to join group: ' + error.message);
+    }
+  };
 
   const handleOpenModal = () => {
     if (!user) {
@@ -42,7 +62,7 @@ const Groups = () => {
 
     setIsLoading(true);
     try {
-      await createGroup(formData.name, formData.maxMembers);
+      await createGroup(formData.name, Number(formData.maxMembers));
       handleCloseModal();
       // Refresh groups list or navigate
       window.location.reload();
@@ -54,21 +74,56 @@ const Groups = () => {
     }
   };
 
-  const [groupsJoined, setGroupsJoined] = useState([]);
+  const fetchTrendingGroups = async () => {
+    try {
+      const groups = await getRandomGroups();
+      setTrendingGroups(groups);
+    } catch (error) {
+      console.error('Error fetching trending groups:', error);
+    }
+  };
 
   useEffect(() => {
-      // Fetch groups joined by the user on component mount
       const fetchGroups = async () => {
         try {
           const groups = await getGroupsJoined();
           setGroupsJoined(groups);
         } catch (error) {
-          console.error('Error fetching groups:', error);
+          console.error('Error fetching joined groups:', error);
         }
       };
 
       fetchGroups();
+      fetchTrendingGroups();
   }, []);
+
+  useEffect(() => {
+    if (groupSearchQuery.trim() === '') {
+      if (groupSearchQuery === '') fetchTrendingGroups();
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingGroups(true);
+      try {
+        const results = await searchGroups(groupSearchQuery);
+        setTrendingGroups(results);
+      } catch (error) {
+        console.error('Error searching groups:', error);
+      } finally {
+        setIsSearchingGroups(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [groupSearchQuery]);
+
+  const groupImages = [
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBquzG03V5HT1Uc3eqQkbeUKsiTtCUWt1cGIQu2Ci3LnFteI9GvrfBsHeNpRZ1OacHjrSHFHqrVGUSOnmc5_bpQglD0dF4t6ve1KsbIMo5r-uh8EwyBXQVYl-vN-QqG2-rQYCC94H-f00aoS-bRGeDe_LXvF-oAHRuU-XDu-xn7sEu37AA5oHT97O--WSNicbZF_IpO-5KVIYU6n3_Nt75H4ISOKauQ_SbOnmPFNBTdxOd9mgFL9WxEDlVgi-1DLSMdwI4x3o6vEYJY",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuASucBs-xUAliFo3UUd-0EjlvfnEZVOzj_p-KhCBvK3DbYrmvDDNNUBbQlWD45ie5UZe0RDUqIzLxLLwP9ArjDc0lkAt3zsaWG67G3AIXNYNEMiau3R9FCG91vuhUEdB7YEJw9etckQSRRQLUp0Ga7eGYRlYqSo46O44lKbDZpnXBsbU63xjnI1erwhYdK3vhhKcDVAtxqbihxKx6JcqAx5SKu7sWv_QiJN-QmDehg1SgCVSohTYkntDxQDoUvON-41Lampu40TqioT",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBRnF6sRy_st2k9PQv0NDjGR-X0QZP__iYh1DhFU4gPYcxg0FufoW_dLqfIKySsu5-_liib3D02ckUN7_8oEYe_dNku0TkAKkMHPDFeJZbvcnfQ0edWxet1rEgO4bdU67wDQiejRXTWT2Le1sJi4D8NWhE-ByPqz-FZ1NjY2wsqJCuQcqPotAcQhutrN2tD_QMOr74rMSKoVdaB7lpA4YcZJSbtjUGpEVtOC-IrC_B9o2Gbh64OYmEK6KTJ9DsluUq_yTEiOSYbwm9c",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuAy3I48OfwbMDmtr4gGtJPPWTcBn8_j9hu-xzuSauF_GXqdP_wTk0ArE29UwaU_ORcWNLYnPEoMJbD_Uf_4gE1Hsm1hf0tWHG0Yeuytbn--R5ixGDBEqpRxj08-wNkxT13KCYJ22WjZtUHTfJzBBrSEHPG1Eg3IDlU5OcvewphcTbqpV0pt-puSJgW1Pj6ux5SLiOVOh14HWKAHONIdSW4tCy0Nqy4T0C8Q6tFtywfQ8qnDUbSkbeba9oEzEgw5wfg3QwUyKcHgUq7n"
+  ];
 
   return (
     <div className="groups-page">
@@ -98,7 +153,7 @@ const Groups = () => {
                 <span className="body-md text-sm">{group.maxMembers} Members</span>
               </div>
             </div>
-            <button className="btn-enter">
+            <button className="btn-enter" onClick={() => handleEnterGroup(group.id)}>
               Enter Group
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
@@ -115,116 +170,44 @@ const Groups = () => {
           <div className="filter-controls">
             <div className="search-bar-wrap">
               <span className="material-symbols-outlined search-icon">search</span>
-              <input type="text" className="search-input" placeholder="Find by subject or interest..." />
+              <input 
+                type="text" 
+                className="search-input" 
+                placeholder="Find groups by name..." 
+                value={groupSearchQuery}
+                onChange={(e) => setGroupSearchQuery(e.target.value)}
+              />
+              {isSearchingGroups && <div className="search-loader-sm"></div>}
             </div>
-            <button className="filter-btn">
-              <span className="material-symbols-outlined">tune</span>
-              Filter
-            </button>
           </div>
         </div>
 
         <div className="trending-grid">
-          {/* Trending Card 1 */}
-          <div className="trending-card">
-            <div className="trending-img-wrap">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBquzG03V5HT1Uc3eqQkbeUKsiTtCUWt1cGIQu2Ci3LnFteI9GvrfBsHeNpRZ1OacHjrSHFHqrVGUSOnmc5_bpQglD0dF4t6ve1KsbIMo5r-uh8EwyBXQVYl-vN-QqG2-rQYCC94H-f00aoS-bRGeDe_LXvF-oAHRuU-XDu-xn7sEu37AA5oHT97O--WSNicbZF_IpO-5KVIYU6n3_Nt75H4ISOKauQ_SbOnmPFNBTdxOd9mgFL9WxEDlVgi-1DLSMdwI4x3o6vEYJY" alt="Trending Group" className="trending-img" />
-            </div>
-            <div className="trending-content">
-              <div>
-                <div className="trending-tags">
-                  <span className="tag-badge bg-tertiary-fixed text-on-tertiary-fixed">Science</span>
-                  <span className="tag-text">• 1.2k members</span>
-                </div>
-                <h4 className="body-lg font-h trending-title">The Feynman Method Hive</h4>
-                <p className="body-md text-sm text-on-surface-variant line-clamp-2">Explaining complex concepts simply. Join daily sprint sessions.</p>
+          {trendingGroups.map((group, index) => (
+            <div className="trending-card" key={group.id}>
+              <div className="trending-img-wrap">
+                <img src={groupImages[index % groupImages.length]} alt="Trending Group" className="trending-img" />
               </div>
-              <div className="trending-footer">
-                <div className="avatar-group">
-                  <div className="avatar-sm bg-slate-200"></div>
-                  <div className="avatar-sm bg-slate-300"></div>
-                  <div className="avatar-sm bg-slate-400"></div>
-                  <div className="avatar-sm bg-slate-500 avatar-count">+1k</div>
+              <div className="trending-content">
+                <div>
+                  <div className="trending-tags">
+                    <span className="tag-badge bg-tertiary-fixed text-on-tertiary-fixed">Active</span>
+                    <span className="tag-text">• {group.maxMembers} max members</span>
+                  </div>
+                  <h4 className="body-lg font-h trending-title">{group.name}</h4>
+                  <p className="body-md text-sm text-on-surface-variant line-clamp-2">Owned by {group.ownerName}. Join this group to study together!</p>
                 </div>
-                <button className="btn-join">Join</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Trending Card 2 */}
-          <div className="trending-card">
-            <div className="trending-img-wrap">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuASucBs-xUAliFo3UUd-0EjlvfnEZVOzj_p-KhCBvK3DbYrmvDDNNUBbQlWD45ie5UZe0RDUqIzLxLLwP9ArjDc0lkAt3zsaWG67G3AIXNYNEMiau3R9FCG91vuhUEdB7YEJw9etckQSRRQLUp0Ga7eGYRlYqSo46O44lKbDZpnXBsbU63xjnI1erwhYdK3vhhKcDVAtxqbihxKx6JcqAx5SKu7sWv_QiJN-QmDehg1SgCVSohTYkntDxQDoUvON-41Lampu40TqioT" alt="Trending Group" className="trending-img" />
-            </div>
-            <div className="trending-content">
-              <div>
-                <div className="trending-tags">
-                  <span className="tag-badge bg-primary-fixed text-on-primary-fixed">Code</span>
-                  <span className="tag-text">• 840 members</span>
+                <div className="trending-footer">
+                  <div className="avatar-group">
+                    <div className="avatar-sm bg-slate-200"></div>
+                    <div className="avatar-sm bg-slate-300"></div>
+                    <div className="avatar-sm bg-slate-400"></div>
+                  </div>
+                  <button className="btn-join" onClick={() => handleJoinGroup(group.id)}>Join</button>
                 </div>
-                <h4 className="body-lg font-h trending-title">Algorithm Architects</h4>
-                <p className="body-md text-sm text-on-surface-variant line-clamp-2">Daily LeetCode grind and system design discussions.</p>
-              </div>
-              <div className="trending-footer">
-                <div className="avatar-group">
-                  <div className="avatar-sm bg-slate-200"></div>
-                  <div className="avatar-sm bg-slate-300"></div>
-                  <div className="avatar-sm bg-slate-400 avatar-count">+2</div>
-                </div>
-                <button className="btn-join">Join</button>
               </div>
             </div>
-          </div>
-
-          {/* Trending Card 3 */}
-          <div className="trending-card">
-            <div className="trending-img-wrap">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRnF6sRy_st2k9PQv0NDjGR-X0QZP__iYh1DhFU4gPYcxg0FufoW_dLqfIKySsu5-_liib3D02ckUN7_8oEYe_dNku0TkAKkMHPDFeJZbvcnfQ0edWxet1rEgO4bdU67wDQiejRXTWT2Le1sJi4D8NWhE-ByPqz-FZ1NjY2wsqJCuQcqPotAcQhutrN2tD_QMOr74rMSKoVdaB7lpA4YcZJSbtjUGpEVtOC-IrC_B9o2Gbh64OYmEK6KTJ9DsluUq_yTEiOSYbwm9c" alt="Trending Group" className="trending-img" />
-            </div>
-            <div className="trending-content">
-              <div>
-                <div className="trending-tags">
-                  <span className="tag-badge bg-secondary-fixed text-on-secondary-fixed">Philosophy</span>
-                  <span className="tag-text">• 256 members</span>
-                </div>
-                <h4 className="body-lg font-h trending-title">Stoic Study Hall</h4>
-                <p className="body-md text-sm text-on-surface-variant line-clamp-2">Reading through the meditations and practicing daily reflection.</p>
-              </div>
-              <div className="trending-footer">
-                <div className="avatar-group">
-                  <div className="avatar-sm bg-slate-200"></div>
-                  <div className="avatar-sm bg-slate-300"></div>
-                </div>
-                <button className="btn-join">Join</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Trending Card 4 */}
-          <div className="trending-card">
-            <div className="trending-img-wrap">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAy3I48OfwbMDmtr4gGtJPPWTcBn8_j9hu-xzuSauF_GXqdP_wTk0ArE29UwaU_ORcWNLYnPEoMJbD_Uf_4gE1Hsm1hf0tWHG0Yeuytbn--R5ixGDBEqpRxj08-wNkxT13KCYJ22WjZtUHTfJzBBrSEHPG1Eg3IDlU5OcvewphcTbqpV0pt-puSJgW1Pj6ux5SLiOVOh14HWKAHONIdSW4tCy0Nqy4T0C8Q6tFtywfQ8qnDUbSkbeba9oEzEgw5wfg3QwUyKcHgUq7n" alt="Trending Group" className="trending-img" />
-            </div>
-            <div className="trending-content">
-              <div>
-                <div className="trending-tags">
-                  <span className="tag-badge bg-surface-variant text-on-surface-variant">Focus</span>
-                  <span className="tag-text">• 4.5k members</span>
-                </div>
-                <h4 className="body-lg font-h trending-title">Pomodoro Global</h4>
-                <p className="body-md text-sm text-on-surface-variant line-clamp-2">Synchronized pomodoro sessions with ambient soundscapes.</p>
-              </div>
-              <div className="trending-footer">
-                <div className="avatar-group">
-                  <div className="avatar-sm bg-slate-200"></div>
-                  <div className="avatar-sm bg-slate-300"></div>
-                  <div className="avatar-sm bg-slate-400"></div>
-                  <div className="avatar-sm bg-slate-500 avatar-count">+4k</div>
-                </div>
-                <button className="btn-join">Join</button>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 

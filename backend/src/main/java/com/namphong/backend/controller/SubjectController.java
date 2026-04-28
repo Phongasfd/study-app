@@ -26,6 +26,9 @@ public class SubjectController {
     public ResponseEntity<SubjectResponse> createSubject(@RequestBody SubjectRequest subject,
                                                          HttpServletRequest request)
     {
+        if (request.getUserPrincipal() == null) {
+            return ResponseEntity.status(401).build();
+        }
         UUID userId = UUID.fromString(request.getUserPrincipal().getName());
         UserEntity user = userService.getUserEntityById(userId);
 

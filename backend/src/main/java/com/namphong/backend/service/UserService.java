@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -71,5 +72,12 @@ public class UserService {
 
     public UserEntity getUserEntityById(UUID userId) {
         return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public List<UserResponseDTO> searchUsers(String username) {
+        return userRepository.findByUsernameContainingIgnoreCase(username)
+                .stream()
+                .map(user -> new UserResponseDTO(user.getId(), user.getEmail(), user.getUsername(), user.getCreatedAt()))
+                .toList();
     }
 }
