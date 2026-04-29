@@ -40,6 +40,7 @@ public class GroupService {
         return savedGroup;
     }
 
+    @Transactional
     public void deleteGroup(UUID groupId, UUID userId) {
         groupRepository.findById(groupId).ifPresent(group -> {
             if (group.getOwner().getId().equals(userId)) {
@@ -51,6 +52,7 @@ public class GroupService {
         });
     }
 
+    @Transactional
     public StudyGroup updateGroupName(UUID groupId, String newName, UUID userId) {
         return groupRepository.findById(groupId).map(group -> {
             if (group.getOwner().getId().equals(userId)) {

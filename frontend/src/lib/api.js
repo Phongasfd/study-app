@@ -267,3 +267,32 @@ export const addSubjectToSession = async (sessionId, subjectId) => {
     throw new Error(message);
   }
 };
+
+export const getWeeklyStats = async () => {
+  try {
+    const response = await axiosClient.get('/stat/weekly');
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const syncDailyStat = async () => {
+  try {
+    const response = await axiosClient.post('/stat/sync');
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
