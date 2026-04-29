@@ -296,3 +296,17 @@ export const syncDailyStat = async () => {
   }
 };
 
+export const getMonthlyStats = async () => {
+  try {
+    const response = await axiosClient.get('/stat/monthly');
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+

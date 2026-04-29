@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Stats.css';
-import { getWeeklyStats, syncDailyStat } from '../lib/api';
+import { getWeeklyStats, syncDailyStat, getMonthlyStats } from '../lib/api';
 
 // Day labels aligned with Java's DayOfWeek Mon=1 … Sun=7
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -81,6 +81,7 @@ const Stats = () => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(dailyGoal));
   const [weeklyData, setWeeklyData] = useState(DAY_LABELS.map((label) => ({ label, hours: 0 })));
+  const [monthlyData, setMonthlyData] = useState([]);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
   const [studiedToday, setStudiedToday] = useState(0);
 
@@ -107,10 +108,25 @@ const Stats = () => {
       });
   }, []);
 
+  useEffect(() => {
+    // Fetch monthly data when view switches to monthly
+    if (viewType === 'monthly' && monthlyData.length === 0) {
+      getMonthlyStats()
+        .then((data) => {
+          const mapped = data.map((entry) => ({
+            label: entry.weekLabel,
+            hours: parseFloat((entry.totalDuration / 3600).toFixed(2)),
+          }));
+          setMonthlyData(mapped);
+        })
+        .catch((err) => console.error('Failed to fetch monthly stats:', err));
+    }
+  }, [viewType]);
+
   const isMonthly = viewType === 'monthly';
 
   // Chart data
-  const chartData = isMonthly ? MONTHLY_DATA : weeklyData;
+  const chartData = isMonthly ? monthlyData : weeklyData;
   const maxHours = Math.max(...chartData.map((d) => d.hours), 0.1);
   const totalHours = chartData.reduce((s, d) => s + d.hours, 0);
 
@@ -229,13 +245,13 @@ const Stats = () => {
             className={`toggle-btn ${!isMonthly ? 'active' : ''}`}
             onClick={() => setViewType('weekly')}
           >
-            Weekly
+            Week
           </button>
           <button
             className={`toggle-btn ${isMonthly ? 'active' : ''}`}
             onClick={() => setViewType('monthly')}
           >
-            Monthly
+            Month
           </button>
         </div>
       </div>

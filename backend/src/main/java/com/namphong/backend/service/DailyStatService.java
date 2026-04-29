@@ -1,6 +1,7 @@
 package com.namphong.backend.service;
 
 import com.namphong.backend.dto.DailyStatResponse;
+import com.namphong.backend.dto.WeeklyAggregateResponse;
 import com.namphong.backend.entity.DailyStat;
 import com.namphong.backend.entity.SessionStatus;
 import com.namphong.backend.entity.StudySession;
@@ -14,6 +15,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +87,52 @@ public class DailyStatService {
                 result.add(new DailyStatResponse(null, user.getId(), date, 0));
             }
         }
+        return result;
+    }
+
+    public List<WeeklyAggregateResponse> getMonthlyStats(UserEntity user) {
+        LocalDate today = LocalDate.now();
+        YearMonth currentMonth = YearMonth.from(today);
+        LocalDate monthStart = currentMonth.atDay(1);
+        LocalDate monthEnd = currentMonth.atEndOfMonth();
+
+        // Fetch all daily stats for the current month
+        List<DailyStat> monthlyStats = dailyStatRepository.findByUserAndDateBetween(user, monthStart, monthEnd);
+        Map<LocalDate, DailyStat> statByDate = monthlyStats.stream()
+                .collect(Collectors.toMap(DailyStat::getDate, s -> s));
+
+        List<WeeklyAggregateResponse> result = new ArrayList<>();
+        
+        // Split month into 4 weeks (or less if month has fewer days)
+        LocalDate weekStart = monthStart;
+        int weekNum = 1;
+        
+        while (!weekStart.isAfter(monthEnd)) {
+            LocalDate weekEnd = weekStart.plusDays(6); // 7 days per week
+            if (weekEnd.isAfter(monthEnd)) {
+                weekEnd = monthEnd;
+            }
+
+            // Sum all daily stats in this week
+            int weekTotalSeconds = 0;
+            for (LocalDate date = weekStart; !date.isAfter(weekEnd); date = date.plusDays(1)) {
+                DailyStat stat = statByDate.get(date);
+                if (stat != null) {
+                    weekTotalSeconds += stat.getTotalDuration() != null ? stat.getTotalDuration() : 0;
+                }
+            }
+
+            result.add(new WeeklyAggregateResponse(
+                    "Week " + weekNum,
+                    weekStart,
+                    weekEnd,
+                    weekTotalSeconds
+            ));
+
+            weekStart = weekEnd.plusDays(1);
+            weekNum++;
+        }
+
         return result;
     }
 }
