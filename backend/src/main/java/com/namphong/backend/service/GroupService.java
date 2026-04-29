@@ -43,7 +43,8 @@ public class GroupService {
     public void deleteGroup(UUID groupId, UUID userId) {
         groupRepository.findById(groupId).ifPresent(group -> {
             if (group.getOwner().getId().equals(userId)) {
-                groupRepository.delete(group);
+                groupMemberRepository.deleteAllByGroupId(groupId);  // Delete all members first
+                groupRepository.delete(group);  // Then delete the group
             } else {
                 throw new RuntimeException("Only the owner can delete the group");
             }

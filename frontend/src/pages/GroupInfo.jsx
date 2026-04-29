@@ -230,7 +230,6 @@ const GroupInfo = () => {
               <div className="member-item" key={member.id}>
                 <div className="avatar-wrap">
                   <img src={member.avatar || `https://ui-avatars.com/api/?name=${member.username}`} alt={member.username} className="member-avatar" />
-                  <span className={`status-dot ${member.status}`}></span>
                 </div>
                 <div className="member-info">
                   <p className="label-sm text-primary">{member.username}</p>
