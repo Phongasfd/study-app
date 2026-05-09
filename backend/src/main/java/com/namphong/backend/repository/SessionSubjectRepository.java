@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface SessionSubjectRepository extends JpaRepository<SessionSubject, UUID> {
     List<SessionSubject> findBySessionId(UUID sessionId);
+    List<SessionSubject> findBySessionIdIn(List<UUID> sessionIds);
 }

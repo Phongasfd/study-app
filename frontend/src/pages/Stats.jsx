@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react';
 import './Stats.css';
-import { getWeeklyStats, syncDailyStat, getMonthlyStats } from '../lib/api';
+import { getWeeklyStats, syncDailyStat, getMonthlyStats, getWeeklySubjectStats, getMonthlySubjectStats } from '../lib/api';
 
 // Day labels aligned with Java's DayOfWeek Mon=1 … Sun=7
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const MONTHLY_DATA = [
-  { label: 'Week 1', hours: 28.4 },
-  { label: 'Week 2', hours: 34.1 },
-  { label: 'Week 3', hours: 22.7 },
-  { label: 'Week 4', hours: 39.2 },
-];
 
 const MONTHLY_SUBJECTS = [
   { name: 'Math', hours: 48.5, iconClass: 'bg-orange-light text-orange', barClass: 'bg-orange', pct: 42, icon: 'functions', desc: 'Algebra, Calculus & Statistics' },
@@ -38,20 +31,6 @@ const MONTHLY_TRENDS = [
     label: 'Peak Focus Day',
     value: 'Friday',
     sub: 'You consistently peak on Fridays.',
-  },
-  {
-    iconClass: 'bg-blue-light text-blue',
-    icon: 'workspace_premium',
-    label: 'Goal Completion Rate',
-    value: '78%',
-    sub: '18 out of 30 days goal reached.',
-  },
-  {
-    iconClass: 'bg-orange-light text-orange',
-    icon: 'local_fire_department',
-    label: 'Longest Streak',
-    value: '9 Days',
-    sub: 'Keep it going — streak record incoming!',
   },
 ];
 
@@ -82,45 +61,67 @@ const Stats = () => {
   const [goalInput, setGoalInput] = useState(String(dailyGoal));
   const [weeklyData, setWeeklyData] = useState(DAY_LABELS.map((label) => ({ label, hours: 0 })));
   const [monthlyData, setMonthlyData] = useState([]);
+  const [monthlySubjectData, setMonthlySubjectData] = useState([]);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklySubjectData, setWeeklySubjectData] = useState([]);
   const [studiedToday, setStudiedToday] = useState(0);
 
   useEffect(() => {
-    // 1. Sync today's stat from completed sessions, then fetch the full week
-    syncDailyStat()
-      .then((data) => {
-        // Update studied hours from today's daily stat
+    const fetchData = async () => {
+      try {
+        // 1. Sync today's stat
+        const data = await syncDailyStat();
+  
         const hours = parseFloat((data.totalDuration / 3600).toFixed(2));
         setStudiedToday(hours);
-      })
-      .catch((err) => console.warn('Sync skipped:', err))
-      .finally(() => {
-        getWeeklyStats()
-          .then((data) => {
-            const mapped = data.map((entry, i) => ({
-              label: DAY_LABELS[i],
-              hours: parseFloat((entry.totalDuration / 3600).toFixed(2)),
-            }));
-            setWeeklyData(mapped);
-          })
-          .catch((err) => console.error('Failed to fetch weekly stats:', err))
-          .finally(() => setWeeklyLoading(false));
-      });
+      } catch (err) {
+        console.warn('Sync skipped:', err);
+      }
+  
+      try {
+        // 2. Fetch weekly stats
+        const data = await getWeeklyStats();
+        const subjectData = await getWeeklySubjectStats();
+
+        setWeeklySubjectData(subjectData);
+  
+        const mapped = data.map((entry, i) => ({
+          label: DAY_LABELS[i],
+          hours: parseFloat((entry.totalDuration / 3600).toFixed(2)),
+        }));
+  
+        setWeeklyData(mapped);
+      } catch (err) {
+        console.error('Failed to fetch weekly stats:', err);
+      } finally {
+        setWeeklyLoading(false);
+      }
+    };
+  
+    fetchData();
   }, []);
 
   useEffect(() => {
-    // Fetch monthly data when view switches to monthly
-    if (viewType === 'monthly' && monthlyData.length === 0) {
-      getMonthlyStats()
-        .then((data) => {
+    const fetchMonthlyData = async () => {
+      if (viewType === 'monthly' && monthlyData.length === 0) {
+        try {
+          const data = await getMonthlyStats();
+          const subjectData = await getMonthlySubjectStats();
+          setMonthlySubjectData(subjectData);
+
           const mapped = data.map((entry) => ({
             label: entry.weekLabel,
             hours: parseFloat((entry.totalDuration / 3600).toFixed(2)),
           }));
+
           setMonthlyData(mapped);
-        })
-        .catch((err) => console.error('Failed to fetch monthly stats:', err));
-    }
+        } catch (err) {
+          console.error('Failed to fetch monthly stats:', err);
+        }
+      }
+    };
+
+    fetchMonthlyData();
   }, [viewType]);
 
   const isMonthly = viewType === 'monthly';
@@ -136,7 +137,42 @@ const Stats = () => {
   const CIRC = 2 * Math.PI * R;
   const dashOffset = CIRC * (1 - pct);
 
-  const subjects = isMonthly ? MONTHLY_SUBJECTS : WEEKLY_SUBJECTS;
+  // If weekly subject data from API is available, use it to render the subject cards.
+  const subjects = (() => {
+    if (isMonthly) {
+      if (monthlySubjectData && monthlySubjectData.length > 0) {
+        const totalSeconds = monthlySubjectData.reduce((s, x) => s + (x.totalDurationSeconds || 0), 0) || 1;
+        return monthlySubjectData.map((s) => ({
+          name: s.subjectName || 'Unknown',
+          hours: parseFloat(((s.totalDurationSeconds || 0) / 3600).toFixed(2)),
+          pct: Math.round(((s.totalDurationSeconds || 0) / totalSeconds) * 100),
+          iconClass: 'bg-indigo-light text-indigo',
+          barClass: 'bg-indigo',
+          icon: 'school',
+          desc: '',
+        }));
+      }
+      return MONTHLY_SUBJECTS;
+    }
+
+    if (weeklySubjectData && weeklySubjectData.length > 0) {
+      const totalSeconds = weeklySubjectData.reduce((s, x) => s + (x.totalDurationSeconds || 0), 0) || 1;
+      // count total seconds to calculate percentage
+
+      // transform data to render 
+      return weeklySubjectData.map((s) => ({
+        name: s.subjectName || 'Unknown',
+        hours: parseFloat(((s.totalDurationSeconds || 0) / 3600).toFixed(2)),
+        pct: Math.round(((s.totalDurationSeconds || 0) / totalSeconds) * 100),
+        iconClass: 'bg-indigo-light text-indigo',
+        barClass: 'bg-indigo',
+        icon: 'school',
+        desc: '',
+      }));
+    }
+
+    return WEEKLY_SUBJECTS;
+  })();
   const trends = isMonthly ? MONTHLY_TRENDS : WEEKLY_TRENDS;
 
   const handleOpenGoalEditor = () => {
@@ -278,13 +314,6 @@ const Stats = () => {
             <div>
               <p className="stat-chip-value">{Math.max(...chartData.map((d) => d.hours)).toFixed(1)}h</p>
               <p className="stat-chip-label">Best Week</p>
-            </div>
-          </div>
-          <div className="stat-chip">
-            <span className="material-symbols-outlined stat-chip-icon">local_fire_department</span>
-            <div>
-              <p className="stat-chip-value">9 days</p>
-              <p className="stat-chip-label">Longest Streak</p>
             </div>
           </div>
         </div>

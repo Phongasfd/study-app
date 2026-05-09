@@ -2,8 +2,12 @@ package com.namphong.backend.controller;
 
 import com.namphong.backend.dto.SessionSubjectRequest;
 import com.namphong.backend.dto.SessionSubjectResponse;
+import com.namphong.backend.dto.WeeklySubjectStatsResponse;
 import com.namphong.backend.entity.SessionSubject;
+import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.service.SessionSubjectService;
+import com.namphong.backend.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/session-subject")
 public class SessionSubjectController {
     private final SessionSubjectService sessionSubjectService;
+    private final UserService userService;
 
     @PostMapping("/")
     public ResponseEntity<SessionSubjectResponse> addSubjectToSession(@RequestBody SessionSubjectRequest request) {
@@ -49,6 +54,30 @@ public class SessionSubjectController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/weekly-stats")
+    public ResponseEntity<List<WeeklySubjectStatsResponse>> getWeeklySubjectStats(HttpServletRequest request) {
+        if (request.getUserPrincipal() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID userId = UUID.fromString(request.getUserPrincipal().getName());
+        UserEntity user = userService.getUserEntityById(userId);
+
+        List<WeeklySubjectStatsResponse> stats = sessionSubjectService.getWeeklySubjectStats(user);
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/monthly-stats")
+    public ResponseEntity<List<WeeklySubjectStatsResponse>> getMonthlySubjectStats(HttpServletRequest request) {
+        if (request.getUserPrincipal() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID userId = UUID.fromString(request.getUserPrincipal().getName());
+        UserEntity user = userService.getUserEntityById(userId);
+
+        List<WeeklySubjectStatsResponse> stats = sessionSubjectService.getMonthlySubjectStats(user);
+        return ResponseEntity.ok(stats);
     }
 
 }

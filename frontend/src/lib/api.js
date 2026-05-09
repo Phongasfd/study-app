@@ -310,3 +310,31 @@ export const getMonthlyStats = async () => {
   }
 };
 
+export const getWeeklySubjectStats = async () => {
+  try {
+    const response = await axiosClient.get('/session-subject/weekly-stats');
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const getMonthlySubjectStats = async () => {
+  try {
+    const response = await axiosClient.get('/session-subject/monthly-stats');
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+

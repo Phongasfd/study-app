@@ -12,4 +12,7 @@ import java.util.UUID;
 public interface StudySessionRepository extends JpaRepository<StudySession, UUID> {
     List<StudySession> findByUserAndStatusAndStartTimeBetween(
             UserEntity user, SessionStatus status, LocalDateTime start, LocalDateTime end);
+
+    List<StudySession> findByUserAndStartTimeBetween(
+            UserEntity user, LocalDateTime start, LocalDateTime end);
 }
