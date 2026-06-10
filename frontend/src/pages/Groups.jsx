@@ -2,12 +2,12 @@ import './Groups.css';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup } from '../lib/api';
+import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup, getGroupRanking, createGroupRanking } from '../lib/api';
 
 const Groups = () => {
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false); // Modal visibility state
-  const [formData, setFormData] = useState({ 
+  const [formData, setFormData] = useState({
     name: '',
     maxMembers: ''
   }); // Form data state
@@ -25,6 +25,11 @@ const Groups = () => {
   const handleJoinGroup = async (id) => {
     try {
       await joinGroup(id);
+      try {
+        await createGroupRanking(id, user.id);
+      } catch (e) {
+        console.error("Failed to init group ranking", e);
+      }
       navigate(`/groups/${id}`);
     } catch (error) {
       console.error('Error joining group:', error);
@@ -62,10 +67,15 @@ const Groups = () => {
 
     setIsLoading(true);
     try {
-     const newGroup = await createGroup(formData.name, Number(formData.maxMembers));
+      const newGroup = await createGroup(formData.name, Number(formData.maxMembers));
+      try {
+        await createGroupRanking(newGroup.id, user.id);
+      } catch (e) {
+        console.error("Failed to init group ranking", e);
+      }
       handleCloseModal();
       // Refresh groups list or navigate
-      setGroupsJoined(prev => [...prev, newGroup]); 
+      setGroupsJoined(prev => [...prev, { ...newGroup, userRank: 1 }]);
     } catch (error) {
       console.error('Error creating group:', error);
       alert('Failed to create group. Please try again.');
@@ -84,17 +94,29 @@ const Groups = () => {
   }; // handle fetch trending group 
 
   useEffect(() => {
-      const fetchGroups = async () => {
-        try {
-          const groups = await getGroupsJoined();
-          setGroupsJoined(groups);
-        } catch (error) {
-          console.error('Error fetching joined groups:', error);
-        }
-      };
+    const fetchGroups = async () => {
+      try {
+        const groups = await getGroupsJoined();
+        const groupsWithRank = await Promise.all(
+          groups.map(async (group) => {
+            try {
+              const rankings = await getGroupRanking(group.id);
+              const myRank = rankings.find(r => r.userId === user.id);
+              return { ...group, userRank: myRank ? myRank.rank : '-' };
+            } catch (error) {
+              console.error(`Error fetching rank for ${group.id}:`, error);
+              return { ...group, userRank: '-' };
+            }
+          })
+        );
+        setGroupsJoined(groupsWithRank);
+      } catch (error) {
+        console.error('Error fetching joined groups:', error);
+      }
+    };
 
-      fetchGroups(); // fetch groups joined
-      fetchTrendingGroups(); // fetch groups trending  
+    fetchGroups(); // fetch groups joined
+    fetchTrendingGroups(); // fetch groups trending  
   }, []);
 
   useEffect(() => {
@@ -102,7 +124,7 @@ const Groups = () => {
       if (groupSearchQuery === '') fetchTrendingGroups();
       return;
     }
-    // if query is empty, fetch trending groups 
+    // if query is empty, fetch trendinga groups 
 
     const delayDebounceFn = setTimeout(async () => {
       setIsSearchingGroups(true);
@@ -137,7 +159,7 @@ const Groups = () => {
             Create New
           </button>
         </div>
-        
+
         <div className="groups-grid">
           {groupsJoined.map((group) => (
             <div className="group-card" key={group.id}>
@@ -145,20 +167,24 @@ const Groups = () => {
                 <div className="icon-badge bg-primary-container text-white">
                   <span className="material-symbols-outlined">auto_stories</span>
                 </div>
-              <span className="status-badge bg-secondary-container text-on-secondary-container">Active</span>
-            </div>
-            <h3 className="body-lg font-h h3-margin">{group.name}</h3>
-            <div className="group-stats">
-              <div className="stat-item">
-                <span className="material-symbols-outlined icon-sm">group</span>
-                <span className="body-md text-sm">{group.maxMembers} Members</span>
+                <span className="status-badge bg-secondary-container text-on-secondary-container">Active</span>
               </div>
+              <h3 className="body-lg font-h h3-margin">{group.name}</h3>
+              <div className="group-stats">
+                <div className="stat-item">
+                  <span className="material-symbols-outlined icon-sm">group</span>
+                  <span className="body-md text-sm">{group.maxMembers} Members</span>
+                </div>
+                <div className="stat-item">
+                  <span className="material-symbols-outlined icon-sm">leaderboard</span>
+                  <span className="body-md text-sm">Rank: {group.userRank || '-'}</span>
+                </div>
+              </div>
+              <button className="btn-enter" onClick={() => handleEnterGroup(group.id)}>
+                Enter Group
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
             </div>
-            <button className="btn-enter" onClick={() => handleEnterGroup(group.id)}>
-              Enter Group
-              <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
-          </div>
           ))}
 
         </div>
@@ -171,10 +197,10 @@ const Groups = () => {
           <div className="filter-controls">
             <div className="search-bar-wrap">
               <span className="material-symbols-outlined search-icon">search</span>
-              <input 
-                type="text" 
-                className="search-input" 
-                placeholder="Find groups by name..." 
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Find groups by name..."
                 value={groupSearchQuery}
                 onChange={(e) => setGroupSearchQuery(e.target.value)}
               />
@@ -218,8 +244,8 @@ const Groups = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="h3 text-on-background">Create New Group</h2>
-              <button 
-                className="modal-close-btn" 
+              <button
+                className="modal-close-btn"
                 onClick={handleCloseModal}
                 aria-label="Close modal"
               >
@@ -246,7 +272,7 @@ const Groups = () => {
 
               <div className="form-group">
                 <label htmlFor="subject" className="label-sm text-on-surface-variant">
-                  Max Members 
+                  Max Members
                 </label>
                 <input
                   type="text"

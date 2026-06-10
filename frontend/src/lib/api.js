@@ -17,7 +17,7 @@ export const register = async (username, email, password) => {
     throw new Error(message);
   }
 };
- 
+
 export const googleAuth = () => {
   window.location.href = 'http://localhost:8080/oauth2/authorization/google';
 }
@@ -59,9 +59,9 @@ export const createSubject = async (name) => {
     return response.data;
   } catch (error) {
     const message =
-    error.response?.data?.message ||
-    (typeof error.response?.data === "string" && error.response.data) ||
-    error.message;
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
 
     throw new Error(message);
   }
@@ -73,9 +73,9 @@ export const deleteSubject = async (id) => {
     return response.data;
   } catch (error) {
     const message =
-    error.response?.data?.message ||
-    (typeof error.response?.data === "string" && error.response.data) ||
-    error.message;
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
 
     throw new Error(message);
   }
@@ -88,9 +88,9 @@ export const createGroup = async (name, maxMembers) => {
   } catch (error) {
 
     const message =
-    error.response?.data?.message ||
-    (typeof error.response?.data === "string" && error.response.data) ||
-    error.message;
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
 
     throw new Error(message);
   }
@@ -338,3 +338,58 @@ export const getMonthlySubjectStats = async () => {
   }
 };
 
+export const getGroupRanking = async (groupId) => {
+  try {
+    const response = await axiosClient.get(`/group-ranking/${groupId}`);
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const createGroupRanking = async (groupId, userId) => {
+  try {
+    const response = await axiosClient.post('/group-ranking', { groupId, userId });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const getChatMessages = async (groupId) => {
+  try {
+    const response = await axiosClient.get(`/chat/${groupId}`);
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};
+
+export const sendChatMessage = async (groupId, content) => {
+  try {
+    const response = await axiosClient.post('/chat', { groupId, content });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
+
+    throw new Error(message);
+  }
+};

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './GroupInfo.css';
-import { deleteGroup, removeMember, searchUsers, addMemberToGroup, getGroupDetails } from '../lib/api';
+import { deleteGroup, removeMember, searchUsers, addMemberToGroup, getGroupDetails, getChatMessages, sendChatMessage } from '../lib/api';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,11 +27,7 @@ const GroupInfo = () => {
     { id: 3, name: "Maya J.", focusTime: "30.8h", rank: 3, avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuAN3xJ4y9Uld08a_ONU7xrLTqrL6nnEnwJH_LEgn_Hrkp_MMS_K89BeUAK30-YB4TncmCPiedqqS_fXyO0bxsVeMhUHOQ11OkB-TDTQSC6h2BClAtx1cSiF2GauKR1bmtu0FD9g9dgrskKI4iljTLDpmab4ZWLS68rJbuz0mNJP_earR1K1R5BkbAVqtbRfOJkNBTMArt5czGtiSvqkBs1YrmJct6EEjQXjgOqAuEarD_YzPgbhv8B-NnYpDr-DEv7fhkBlh1s_GzXw" },
   ];
 
-  const chatMessages = [
-    { id: 1, user: "Alex Rivers", text: "Welcome everyone! Let's hit our goals this week.", time: "10:30 AM", isMe: false },
-    { id: 2, user: "You", text: "Thanks Alex! Ready to focus.", time: "10:32 AM", isMe: true },
-    { id: 3, user: "Sarah L.", text: "Anyone studying for the midterm tonight?", time: "11:15 AM", isMe: false },
-  ];
+  const [chatMessages, setChatMessages] = useState([]);
 
   const fetchGroupInfo = async () => {
     try {
@@ -46,8 +42,18 @@ const GroupInfo = () => {
     }
   };
 
+  const fetchMessages = async () => {
+    try {
+      const msgs = await getChatMessages(id);
+      setChatMessages(msgs);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
   useEffect(() => {
     fetchGroupInfo();
+    fetchMessages();
   }, [id]);
 
   const isOwner = group?.ownerName === currentUser?.username;
@@ -109,6 +115,18 @@ const GroupInfo = () => {
     try {
       await deleteGroup(group.id);
       navigate('/groups');
+    } catch (error) {
+      console.error(error.message);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    if (!message.trim()) return;
+    try {
+      await sendChatMessage(group.id, message);
+      setMessage('');
+      fetchMessages();
     } catch (error) {
       console.error(error.message);
     }
@@ -269,28 +287,33 @@ const GroupInfo = () => {
         <div className="info-card chat-card">
           <h3 className="h3 text-primary card-title">Group Chat</h3>
           <div className="chat-messages">
-            {chatMessages.map(msg => (
-              <div className={`chat-bubble-wrap ${msg.isMe ? 'me' : ''}`} key={msg.id}>
-                {!msg.isMe && <p className="chat-user">{msg.user}</p>}
-                <div className="chat-bubble">
-                  <p className="body-md">{msg.text}</p>
-                  <span className="chat-time">{msg.time}</span>
+            {chatMessages.map(msg => {
+              const isMe = msg.senderId === currentUser.id;
+              const date = new Date(msg.timestamp);
+              const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return (
+                <div className={`chat-bubble-wrap ${isMe ? 'me' : ''}`} key={msg.id}>
+                  {!isMe && <p className="chat-user">{msg.senderName}</p>}
+                  <div className="chat-bubble">
+                    <p className="body-md">{msg.content}</p>
+                    <span className="chat-time">{timeString}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <div className="chat-input-wrap">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="chat-input"
-            />
-            <button className="send-btn">
-              <span className="material-symbols-outlined">send</span>
-            </button>
-          </div>
+            <form className="chat-input-wrap" onSubmit={handleSendMessage} style={{width: '100%', display: 'flex', gap: '8px'}}>
+              <input
+                type="text"
+                placeholder="Type a message..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="chat-input"
+              />
+              <button type="submit" className="send-btn">
+                <span className="material-symbols-outlined">send</span>
+              </button>
+            </form>
         </div>
       </div>
     </div>
