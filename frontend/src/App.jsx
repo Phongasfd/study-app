@@ -4,7 +4,6 @@ import BottomNavBar from './components/BottomNavBar';
 import Home from './pages/Home';
 import Stats from './pages/Stats';
 import Groups from './pages/Groups';
-import Ranking from './pages/Ranking';
 import GroupInfo from './pages/GroupInfo';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -27,7 +26,6 @@ const AppContent = () => {
           <Route path="/stats" element={<Stats />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupInfo />} />
-          <Route path="/ranking" element={<Ranking />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>

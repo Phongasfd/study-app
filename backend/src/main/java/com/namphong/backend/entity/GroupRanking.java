@@ -31,5 +31,4 @@ public class GroupRanking {
 
     private Integer totalDuration; // tổng thời gian (seconds)
 
-    private Integer rank; // optional (có thể tính runtime cũng được)
 }

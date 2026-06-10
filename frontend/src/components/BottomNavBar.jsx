@@ -7,7 +7,6 @@ const BottomNavBar = () => {
     { path: '/assistant', icon: 'graphic_eq', label: 'AI Voice' },
     { path: '/groups', icon: 'group', label: 'Groups' },
     { path: '/stats', icon: 'bar_chart', label: 'Stats' },
-    { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
   ];
 
   return (
