@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
@@ -24,5 +25,8 @@ public class StudyGroupDetailResponse {
         private String role;
         private String status;
         private String avatar;
+        private Boolean isStudying; // is the member studying
+        private LocalDateTime activeSessionStartTime; // start time of the active session
+        
     }
 }

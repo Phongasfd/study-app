@@ -22,7 +22,7 @@ public class ChatMessageService {
     public ChatMessageResponse createMessage(ChatMessageRequest request, UserEntity currentUser) {
         ChatMessage message = ChatMessage.builder()
                 .groupId(request.getGroupId())
-                .senderId(currentUser.getId())
+                .senderId(currentUser.getId().toString())
                 .senderName(currentUser.getUsername())
                 .content(request.getContent())
                 .timestamp(LocalDateTime.now())
@@ -33,7 +33,7 @@ public class ChatMessageService {
         return toResponse(message);
     }
     
-    public List<ChatMessageResponse> getMessagesByGroupId(UUID groupId) {
+    public List<ChatMessageResponse> getMessagesByGroupId(String groupId) {
         List<ChatMessage> messages = chatMessageRepository.findByGroupIdOrderByTimestampAsc(groupId);
         return messages.stream()
                 .map(this::toResponse)

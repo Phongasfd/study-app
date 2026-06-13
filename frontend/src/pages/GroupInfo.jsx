@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './GroupInfo.css';
-import { deleteGroup, removeMember, searchUsers, addMemberToGroup, getGroupDetails, getChatMessages, sendChatMessage } from '../lib/api';
+import { deleteGroup, removeMember, searchUsers, addMemberToGroup, getGroupDetails, getChatMessages, sendChatMessage, getGroupRanking } from '../lib/api';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,14 +20,41 @@ const GroupInfo = () => {
   const [members, setMembers] = useState([]); // state for group members
   const [isLoading, setIsLoading] = useState(true); // state for loading 
 
-  // Mock Data for ranking and chat (as requested to not touch ranking/stats)
-  const ranking = [
-    { id: 1, name: "Alex Rivers", focusTime: "41.2h", rank: 1, avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuA6JQrxIjN4tJ-h-d4nhh0a-YI9aWpJOJkVLvWzJ8uIMvEdABgWgqz26HHayJVxqDjn-LzPV5sBRLq3G5OWeq9XXuUGKQ4pnlFL9H3mNBkKoTTTUCsro2hsX7ByTFJrjBB9LE6C6Vf61V_grvCIpX6EcKf-oD-wtssT7VZVq_PvmCphgTXBOC9qSpSqwHfpcJyNlYDvS5CJHhW4wX5VCYMdR2xTs1Uf1I0BKPM14ujdFwov2dZbKiOHyV035xda72tZjjmacgB7ZNBS" },
-    { id: 2, name: "Sarah L.", focusTime: "32.5h", rank: 2, avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOvCOETwtzsvhEEEWYWNxFbzCcTEeNEzZrhsTS2OI5fFV1mGGode6b0wLtby_HPjhgrkNSncf0X6qCbq_hqQiyjCvIPf9_kS09n4c6d2MXl4QSklFFGogpJNpBJCywseakPIBJmGmBMjYjCtyPEWwoXyCaV4TlIjU_Lxv8ggcSgNydj5h5QE3ZQjGdltiQ8ApDytiMAEb9CiUqxM-RDlm1sX0yc9DJcYPaXjrfgNeljYgfueI5NtJPsRrcmZvFyULmQf5x_CV6byP" },
-    { id: 3, name: "Maya J.", focusTime: "30.8h", rank: 3, avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuAN3xJ4y9Uld08a_ONU7xrLTqrL6nnEnwJH_LEgn_Hrkp_MMS_K89BeUAK30-YB4TncmCPiedqqS_fXyO0bxsVeMhUHOQ11OkB-TDTQSC6h2BClAtx1cSiF2GauKR1bmtu0FD9g9dgrskKI4iljTLDpmab4ZWLS68rJbuz0mNJP_earR1K1R5BkbAVqtbRfOJkNBTMArt5czGtiSvqkBs1YrmJct6EEjQXjgOqAuEarD_YzPgbhv8B-NnYpDr-DEv7fhkBlh1s_GzXw" },
-  ];
+  const [ranking, setRanking] = useState([]); // state for group rankings
+  const [chatMessages, setChatMessages] = useState([]); // state for chat messages
+  const [ws, setWs] = useState(null); // websocket state for real-time updates
+  
+  const [secondsTick, setSecondsTick] = useState(0); // used to force re-renders every second so active timers count up
 
-  const [chatMessages, setChatMessages] = useState([]);
+  // Tick the timer every second to refresh active timers 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsTick(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // secondsTick is used to force re-renders every second so active timers count up
+  const formatActiveDuration = (startTimeStr, _tick) => {
+    if (!startTimeStr) return '00:00:00';
+    try {
+      // Java LocalDateTime serializes as '2026-06-11T14:30:00' (no timezone suffix)
+      // We treat these as UTC since the backend stores/calculates in UTC
+      let isoStr = startTimeStr;
+      if (!isoStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(isoStr)) {
+        isoStr = isoStr + 'Z';
+      }
+      const start = new Date(isoStr);
+      const diffMs = Math.max(0, Date.now() - start.getTime());
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const mins = Math.floor((totalSeconds % 3600) / 60);
+      const secs = totalSeconds % 60;
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return '00:00:00';
+    }
+  };
 
   const fetchGroupInfo = async () => {
     try {
@@ -51,10 +78,50 @@ const GroupInfo = () => {
     }
   };
 
+  const fetchRanking = async () => {
+    try {
+      const data = await getGroupRanking(id);
+      setRanking(data);
+    } catch (error) {
+      console.error('Error fetching rankings:', error);
+    }
+  };
+
   useEffect(() => {
     fetchGroupInfo();
     fetchMessages();
+    fetchRanking();
   }, [id]);
+
+  useEffect(() => {
+    if (!currentUser || !id) return;
+    
+    // Connect to WebSocket
+    const wsUrl = `ws://localhost:8080/ws?groupId=${id}&userId=${currentUser.id}`;
+    const websocket = new WebSocket(wsUrl);
+    setWs(websocket);
+
+    websocket.onmessage = (event) => {
+      try {
+        const messageData = JSON.parse(event.data);
+        if (messageData.type === 'chat') {
+          setChatMessages((prev) => [...prev, messageData.data]);
+        } else if (messageData.type === 'ranking') {
+          setRanking(messageData.data);
+        }
+      } catch (error) {
+        console.error('Failed to parse websocket message:', error);
+      }
+    };
+
+    websocket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    return () => {
+      websocket.close();
+    };
+  }, [id, currentUser]);
 
   const isOwner = group?.ownerName === currentUser?.username;
 
@@ -123,12 +190,18 @@ const GroupInfo = () => {
   const handleSendMessage = async (e) => {
     e?.preventDefault();
     if (!message.trim()) return;
-    try {
-      await sendChatMessage(group.id, message);
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ content: message }));
       setMessage('');
-      fetchMessages();
-    } catch (error) {
-      console.error(error.message);
+    } else {
+      try {
+        await sendChatMessage(group.id, message);
+        setMessage('');
+        fetchMessages();
+      } catch (error) {
+        console.error(error.message);
+      }
     }
   };
 
@@ -244,22 +317,38 @@ const GroupInfo = () => {
         <div className="info-card member-list-card">
           <h3 className="h3 text-primary card-title">Members</h3>
           <div className="members-scroll">
-            {members.map(member => (
-              <div className="member-item" key={member.id}>
-                <div className="avatar-wrap">
-                  <img src={member.avatar || `https://ui-avatars.com/api/?name=${member.username}`} alt={member.username} className="member-avatar" />
+            {members.map(member => {
+              const rankingMember = ranking.find(r => r.userId === member.id);
+              const isStudying = rankingMember ? rankingMember.isStudying : member.isStudying;
+              const activeSessionStartTime = rankingMember ? rankingMember.activeSessionStartTime : member.activeSessionStartTime;
+
+              return (
+                <div className={`member-item ${isStudying ? 'studying-active' : ''}`} key={member.id}>
+                  <div className="avatar-wrap">
+                    <img src={member.avatar || `https://ui-avatars.com/api/?name=${member.username}`} alt={member.username} className="member-avatar" />
+                    {isStudying && <span className="status-dot pulsing-green"></span>}
+                  </div>
+                  <div className="member-info">
+                    <div className="member-name-row">
+                      <p className="label-sm text-primary">{member.username}</p>
+                      {isStudying && <span className="studying-tag">Studying</span>}
+                    </div>
+                    <p className="text-xs text-on-surface-variant">
+                      {isStudying ? (
+                        <span className="member-active-timer">Focusing: {formatActiveDuration(activeSessionStartTime, secondsTick)}</span>
+                      ) : (
+                        member.role
+                      )}
+                    </p>
+                  </div>
+                  {isOwner && member.username !== currentUser.username && (
+                    <button className="remove-member-btn" title="Remove Member" onClick={() => handleRemoveMember(member.id)}>
+                      <span className="material-symbols-outlined">person_remove</span>
+                    </button>
+                  )}
                 </div>
-                <div className="member-info">
-                  <p className="label-sm text-primary">{member.username}</p>
-                  <p className="text-xs text-on-surface-variant">{member.role}</p>
-                </div>
-                {isOwner && member.username !== currentUser.username && (
-                  <button className="remove-member-btn" title="Remove Member" onClick={() => handleRemoveMember(member.id)}>
-                    <span className="material-symbols-outlined">person_remove</span>
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -268,16 +357,25 @@ const GroupInfo = () => {
           <h3 className="h3 text-primary card-title">Leaderboard</h3>
           <div className="ranking-list">
             {ranking.map((rank, index) => (
-              <div className={`rank-item ${index === 0 ? 'top-rank' : ''}`} key={rank.id}>
+              <div className={`rank-item ${index === 0 ? 'top-rank' : ''} ${rank.isStudying ? 'studying-active' : ''}`} key={rank.id || rank.userId}>
                 <span className="rank-number">{rank.rank}</span>
-                <img src={rank.avatar} alt={rank.name} className="rank-avatar" />
+                <div className="avatar-wrap">
+                  <img src={`https://ui-avatars.com/api/?name=${rank.username}`} alt={rank.username} className="rank-avatar" />
+                  {rank.isStudying && <span className="status-dot pulsing-green"></span>}
+                </div>
                 <div className="rank-details">
-                  <p className="label-sm text-primary">{rank.name}</p>
+                  <div className="rank-user-info">
+                    <p className="label-sm text-primary">{rank.username}</p>
+                    {rank.isStudying && <span className="studying-tag">Studying</span>}
+                  </div>
                   <div className="progress-bar-wrap">
-                    <div className="progress-bar-fill" style={{ width: `${100 - index * 15}%` }}></div>
+                    <div className="progress-bar-fill" style={{ width: `${Math.max(10, 100 - index * 15)}%` }}></div>
                   </div>
                 </div>
-                <span className="focus-time">{rank.focusTime}</span>
+                <div className="rank-time-box">
+                  <span className="focus-time">{(rank.totalDuration / 3600).toFixed(1)}h</span>
+                  {rank.isStudying && <span className="active-timer">{formatActiveDuration(rank.activeSessionStartTime, secondsTick)}</span>}
+                </div>
               </div>
             ))}
           </div>
@@ -289,7 +387,19 @@ const GroupInfo = () => {
           <div className="chat-messages">
             {chatMessages.map(msg => {
               const isMe = msg.senderId === currentUser.id;
-              const date = new Date(msg.timestamp);
+              let date = new Date();
+              if (msg.timestamp) {
+                if (Array.isArray(msg.timestamp)) {
+                  date = new Date(Date.UTC(msg.timestamp[0], msg.timestamp[1] - 1, msg.timestamp[2], msg.timestamp[3] || 0, msg.timestamp[4] || 0, msg.timestamp[5] || 0));
+                } else {
+                  let ts = msg.timestamp;
+                  if (typeof ts === 'string' && !ts.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(ts)) {
+                    ts += 'Z';
+                  }
+                  date = new Date(ts);
+                }
+              }
+              if (isNaN(date.getTime())) date = new Date();
               const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               return (
                 <div className={`chat-bubble-wrap ${isMe ? 'me' : ''}`} key={msg.id}>

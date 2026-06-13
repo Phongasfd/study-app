@@ -4,7 +4,7 @@ import com.namphong.backend.entity.SessionStatus;
 import com.namphong.backend.entity.StudySession;
 import com.namphong.backend.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.Optional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -15,4 +15,7 @@ public interface StudySessionRepository extends JpaRepository<StudySession, UUID
 
     List<StudySession> findByUserAndStartTimeBetween(
             UserEntity user, LocalDateTime start, LocalDateTime end);
+
+    // find if the user has the lasted active study session
+    Optional<StudySession> findFirstByUserIdAndStatusOrderByStartTimeDesc(UUID userId, SessionStatus status);
 }

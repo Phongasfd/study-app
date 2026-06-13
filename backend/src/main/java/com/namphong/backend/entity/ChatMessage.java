@@ -5,7 +5,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Document(collection = "chat_messages") // use mongodb for chat message 
 @Getter
@@ -18,9 +17,9 @@ public class ChatMessage {
     @Id
     private String id;
     
-    private UUID groupId;
+    private String groupId;
     
-    private UUID senderId;
+    private String senderId;
     
     private String senderName;
     

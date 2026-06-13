@@ -1,54 +1,70 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { createStudySession, completeStudySession, addSubjectToSession } from "../lib/api";
+import { useAuth } from "./AuthContext";
 
 const TimerContext = createContext();
 
 export const TimerProvider = ({ children }) => {
+  const { user, loading: authLoading } = useAuth();
+
   // ================= STATE =================
-  const [startTime, setStartTime] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.startTime ? Number(parsed.startTime) : null;
-    }
-    return null;
-  });
-
-  const [accumulatedTime, setAccumulatedTime] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.accumulatedTime ? Number(parsed.accumulatedTime) : 0;
-    }
-    return 0;
-  });
-
-  const [isActive, setIsActive] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    return saved ? JSON.parse(saved).isActive : false;
-  });
-
-  const [activeSubject, setActiveSubject] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    return saved ? JSON.parse(saved).activeSubject : null;
-  });
-
-  const [lastResetDate, setLastResetDate] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    return saved ? JSON.parse(saved).lastResetDate : new Date().toDateString();
-  });
-
-  const [currentSessionId, setCurrentSessionId] = useState(() => {
-    const saved = localStorage.getItem("timer");
-    return saved ? JSON.parse(saved).currentSessionId : null;
-  });
+  const [startTime, setStartTime] = useState(null);
+  const [accumulatedTime, setAccumulatedTime] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [activeSubject, setActiveSubject] = useState(null);
+  const [lastResetDate, setLastResetDate] = useState(() => new Date().toDateString());
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [timerLoaded, setTimerLoaded] = useState(false);
 
   const [now, setNow] = useState(Date.now()); // trigger re-render
 
+  // Load timer state from localStorage when auth loading finishes or user changes
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (user && user.id) {
+      const storageKey = `timer_${user.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setStartTime(parsed.startTime ? Number(parsed.startTime) : null);
+          setAccumulatedTime(parsed.accumulatedTime ? Number(parsed.accumulatedTime) : 0);
+          setIsActive(parsed.isActive || false);
+          setActiveSubject(parsed.activeSubject || null);
+          setLastResetDate(parsed.lastResetDate || new Date().toDateString());
+          setCurrentSessionId(parsed.currentSessionId || null);
+        } catch (e) {
+          console.error("Failed to parse timer state from localStorage:", e);
+        }
+      } else {
+        // No saved state for this user, reset to defaults
+        setStartTime(null);
+        setAccumulatedTime(0);
+        setIsActive(false);
+        setActiveSubject(null);
+        setLastResetDate(new Date().toDateString());
+        setCurrentSessionId(null);
+      }
+    } else {
+      // User is logged out, reset to defaults
+      setStartTime(null);
+      setAccumulatedTime(0);
+      setIsActive(false);
+      setActiveSubject(null);
+      setLastResetDate(new Date().toDateString());
+      setCurrentSessionId(null);
+    }
+    setTimerLoaded(true);
+  }, [user?.id, authLoading]);
+
   // save to localStorage on state change
   useEffect(() => {
+    if (!timerLoaded || authLoading || !user || !user.id) return;
+
+    const storageKey = `timer_${user.id}`;
     localStorage.setItem(
-      "timer",
+      storageKey,
       JSON.stringify({
         startTime,
         accumulatedTime,
@@ -58,7 +74,7 @@ export const TimerProvider = ({ children }) => {
         currentSessionId,
       })
     );
-  }, [startTime, accumulatedTime, isActive, activeSubject, lastResetDate, currentSessionId]);
+  }, [startTime, accumulatedTime, isActive, activeSubject, lastResetDate, currentSessionId, user?.id, timerLoaded, authLoading]);
 
   // Check for midnight reset on mount (if page was closed during midnight)
   useEffect(() => {
@@ -155,7 +171,9 @@ export const TimerProvider = ({ children }) => {
     setIsActive(false);
     setActiveSubject(null);
     setCurrentSessionId(null);
-    localStorage.removeItem("timer");
+    if (user && user.id) {
+      localStorage.removeItem(`timer_${user.id}`);
+    }
   };
 
   // Midnight reset logic

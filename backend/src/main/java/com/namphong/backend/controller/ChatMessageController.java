@@ -35,7 +35,7 @@ public class ChatMessageController {
     }
 
     @GetMapping("/{groupId}")
-    public ResponseEntity<List<ChatMessageResponse>> getMessagesByGroupId(@PathVariable UUID groupId) {
+    public ResponseEntity<List<ChatMessageResponse>> getMessagesByGroupId(@PathVariable String groupId) {
         List<ChatMessageResponse> messages = chatMessageService.getMessagesByGroupId(groupId);
         return ResponseEntity.ok(messages);
     }

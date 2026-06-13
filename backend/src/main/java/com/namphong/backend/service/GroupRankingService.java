@@ -5,12 +5,19 @@ import com.namphong.backend.dto.GroupRankingResponse;
 import com.namphong.backend.entity.GroupRanking;
 import com.namphong.backend.entity.StudyGroup;
 import com.namphong.backend.entity.UserEntity;
+import com.namphong.backend.entity.GroupMember;
+import com.namphong.backend.entity.SessionStatus;
+import com.namphong.backend.entity.StudySession;
+import com.namphong.backend.repository.GroupMemberRepository;
 import com.namphong.backend.repository.GroupRankingRepository;
 import com.namphong.backend.repository.GroupRepository;
+import com.namphong.backend.repository.StudySessionRepository;
 import com.namphong.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -22,33 +29,66 @@ public class GroupRankingService {
     private final GroupRankingRepository groupRankingRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupMemberRepository groupMemberRepository;
+    private final StudySessionRepository studySessionRepository;
 
+    @Transactional(readOnly = true)
     public List<GroupRankingResponse> findGroupRankingById(UUID groupId) {
-       List<GroupRanking> rankings = groupRankingRepository.findByGroupIdOrderByTotalDurationDesc(groupId);
+        List<GroupMember> members = groupMemberRepository.findAllByGroupId(groupId);
+        List<GroupRankingResponse> groupRankingResponses = new ArrayList<>();
 
-       List<GroupRankingResponse> groupRankingResponses = new ArrayList<>();
+        for (GroupMember member : members) {
+            UserEntity user = member.getUser();
 
-       int rank = 1;
+            // Get database total duration (completed study sessions)
+            Optional<GroupRanking> rankingOpt = groupRankingRepository.findByGroupIdAndUserId(groupId, user.getId());
+            int dbDuration = rankingOpt.map(GroupRanking::getTotalDuration).orElse(0);
 
-       for (int i = 0; i < rankings.size(); i++) {
-           GroupRanking current = rankings.get(i);
+            // Get active session if any
+            Optional<StudySession> activeSessionOpt = studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(user.getId(), SessionStatus.RUNNING);
 
-           // handle the same ranking
-           if (i > 0 && !current.getTotalDuration().equals(rankings.get(i-1).getTotalDuration())) {
-               rank = i + 1;
-           }
+            int activeDuration = 0;
+            boolean isStudying = false;
+            LocalDateTime activeSessionStartTime = null;
 
-           groupRankingResponses.add(
-                   GroupRankingResponse.builder()
-                           .id(current.getId())
-                           .groupId(groupId)
-                           .userId(current.getUser().getId())
-                           .username(current.getUser().getUsername())
-                           .totalDuration(current.getTotalDuration())
-                           .rank(rank)
-                           .build()
-           );
-       }
+            if (activeSessionOpt.isPresent()) {
+                StudySession activeSession = activeSessionOpt.get();
+                isStudying = true;
+                activeSessionStartTime = activeSession.getStartTime();
+                if (activeSessionStartTime != null) {
+                    activeDuration = (int) java.time.Duration.between(activeSessionStartTime, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)).getSeconds();
+                }
+            }
+
+            int totalDuration = dbDuration + activeDuration;
+
+            groupRankingResponses.add(
+                    GroupRankingResponse.builder()
+                            .id(rankingOpt.map(GroupRanking::getId).orElse(null))
+                            // method reference "::": rankingOpt.map(groupRanking -> groupRanking.getId()).orElse(null)
+                            .groupId(groupId)
+                            .userId(user.getId())
+                            .username(user.getUsername())
+                            .totalDuration(totalDuration)
+                            .isStudying(isStudying)
+                            .activeSessionStartTime(activeSessionStartTime)
+                            .rank(0) // Will set after sorting
+                            .build()
+            );
+        }
+
+        // Sort by total duration descending
+        groupRankingResponses.sort((r1, r2) -> r2.getTotalDuration().compareTo(r1.getTotalDuration()));
+
+        // Assign ranks (handling ties)
+        int rank = 1;
+        for (int i = 0; i < groupRankingResponses.size(); i++) {
+            GroupRankingResponse current = groupRankingResponses.get(i);
+            if (i > 0 && !current.getTotalDuration().equals(groupRankingResponses.get(i - 1).getTotalDuration())) {
+                rank = i + 1;
+            }
+            current.setRank(rank);
+        }
 
         return groupRankingResponses;
     }

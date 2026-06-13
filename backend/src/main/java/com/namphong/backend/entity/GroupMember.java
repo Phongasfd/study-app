@@ -19,11 +19,11 @@ public class GroupMember {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
+    @ManyToOne // many groupmembers belong to one group
     @JoinColumn(name = "group_id")
     private StudyGroup group;
 
-    @ManyToOne
+    @ManyToOne // many groupmembers can belong to one user
     @JoinColumn(name = "user_id")
     @JsonIgnore
     private UserEntity user;
