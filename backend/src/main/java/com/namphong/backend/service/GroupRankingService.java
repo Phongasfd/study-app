@@ -62,6 +62,14 @@ public class GroupRankingService {
 
             int totalDuration = dbDuration + activeDuration;
 
+            // Calculate daily completed duration for the timer base
+            LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+            List<StudySession> todaySessions = studySessionRepository.findByUserAndStartTimeBetween(user, startOfDay, LocalDateTime.now().plusDays(1));
+            int dailyDbDuration = todaySessions.stream()
+                .filter(s -> s.getStatus() == SessionStatus.COMPLETED)
+                .mapToInt(s -> s.getDurationSeconds() != null ? s.getDurationSeconds() : 0)
+                .sum();
+
             groupRankingResponses.add(
                     GroupRankingResponse.builder()
                             .id(rankingOpt.map(GroupRanking::getId).orElse(null))
@@ -70,6 +78,7 @@ public class GroupRankingService {
                             .userId(user.getId())
                             .username(user.getUsername())
                             .totalDuration(totalDuration)
+                            .baseDuration(dailyDbDuration)
                             .isStudying(isStudying)
                             .activeSessionStartTime(activeSessionStartTime)
                             .rank(0) // Will set after sorting
@@ -118,6 +127,7 @@ public class GroupRankingService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .totalDuration(groupRanking.getTotalDuration())
+                .baseDuration(0) // New rankings have 0 daily time
                 .rank(0)
                 .build();
     }

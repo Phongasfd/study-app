@@ -4,7 +4,7 @@ import './NavBar.css';
 const BottomNavBar = () => {
   const navItems = [
     { path: '/', icon: 'timer', label: 'Home' },
-    { path: '/assistant', icon: 'graphic_eq', label: 'AI Voice' },
+    // { path: '/assistant', icon: 'graphic_eq', label: 'AI Voice' },
     { path: '/groups', icon: 'group', label: 'Groups' },
     { path: '/stats', icon: 'bar_chart', label: 'Stats' },
   ];

@@ -35,25 +35,32 @@ const GroupInfo = () => {
   }, []);
 
   // secondsTick is used to force re-renders every second so active timers count up
-  const formatActiveDuration = (startTimeStr, _tick) => {
-    if (!startTimeStr) return '00:00:00';
-    try {
-      // Java LocalDateTime serializes as '2026-06-11T14:30:00' (no timezone suffix)
-      // We treat these as UTC since the backend stores/calculates in UTC
-      let isoStr = startTimeStr;
-      if (!isoStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(isoStr)) {
-        isoStr = isoStr + 'Z';
+  const formatTotalActiveDuration = (baseDuration, startTimeStr, isStudying, _tick) => {
+    let totalSeconds = baseDuration || 0;
+
+    if (isStudying && startTimeStr) {
+      try {
+        let start;
+        if (Array.isArray(startTimeStr)) {
+          start = new Date(Date.UTC(startTimeStr[0], startTimeStr[1] - 1, startTimeStr[2], startTimeStr[3] || 0, startTimeStr[4] || 0, startTimeStr[5] || 0));
+        } else {
+          let isoStr = startTimeStr;
+          if (!isoStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(isoStr)) {
+            isoStr = isoStr + 'Z';
+          }
+          start = new Date(isoStr);
+        }
+        const diffMs = Math.max(0, Date.now() - start.getTime());
+        totalSeconds += Math.floor(diffMs / 1000);
+      } catch (e) {
+        // ignore
       }
-      const start = new Date(isoStr);
-      const diffMs = Math.max(0, Date.now() - start.getTime());
-      const totalSeconds = Math.floor(diffMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const mins = Math.floor((totalSeconds % 3600) / 60);
-      const secs = totalSeconds % 60;
-      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } catch (e) {
-      return '00:00:00';
     }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const fetchGroupInfo = async () => {
@@ -333,11 +340,14 @@ const GroupInfo = () => {
                       <p className="label-sm text-primary">{member.username}</p>
                       {isStudying && <span className="studying-tag">Studying</span>}
                     </div>
-                    <p className="text-xs text-on-surface-variant">
+                    <p className="text-xs text-on-surface-variant" style={{ display: 'flex', gap: '8px' }}>
                       {isStudying ? (
-                        <span className="member-active-timer">Focusing: {formatActiveDuration(activeSessionStartTime, secondsTick)}</span>
+                        <span className="member-active-timer">Focusing: {formatTotalActiveDuration(rankingMember?.baseDuration, activeSessionStartTime, isStudying, secondsTick)}</span>
                       ) : (
-                        member.role
+                        <>
+                          <span>{member.role}</span>
+                          <span className="member-active-timer">• Time: {formatTotalActiveDuration(rankingMember?.baseDuration, null, false, secondsTick)}</span>
+                        </>
                       )}
                     </p>
                   </div>
@@ -374,7 +384,7 @@ const GroupInfo = () => {
                 </div>
                 <div className="rank-time-box">
                   <span className="focus-time">{(rank.totalDuration / 3600).toFixed(1)}h</span>
-                  {rank.isStudying && <span className="active-timer">{formatActiveDuration(rank.activeSessionStartTime, secondsTick)}</span>}
+                  <span className="active-timer">{formatTotalActiveDuration(rank.baseDuration, rank.activeSessionStartTime, rank.isStudying, secondsTick)}</span>
                 </div>
               </div>
             ))}

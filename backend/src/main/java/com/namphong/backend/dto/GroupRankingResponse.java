@@ -19,6 +19,7 @@ public class GroupRankingResponse {
     private UUID userId;
     private String username;
     private Integer totalDuration;
+    private Integer baseDuration;
     private Integer rank;
     private Boolean isStudying;
     private LocalDateTime activeSessionStartTime;
