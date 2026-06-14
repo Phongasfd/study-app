@@ -48,6 +48,18 @@ public class UserService {
         return Optional.empty();
     }
 
+    // for authenticate user in controller 
+    public Optional<UserEntity> authenticate(UserLoginDTO userLoginDTO) {
+        Optional<UserEntity> userOpt = userRepository.findByEmail(userLoginDTO.getEmail());
+        if(userOpt.isEmpty()) return Optional.empty();
+
+        UserEntity user = userOpt.get();
+        if(passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword())){
+            return Optional.of(user);
+        }
+        return Optional.empty();
+    }
+
     public UserResponseDTO register(UserRequestDTO userRequestDTO) {
         UserEntity user = new UserEntity();
         user.setEmail(userRequestDTO.getEmail());
