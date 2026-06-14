@@ -9,6 +9,8 @@ import com.namphong.backend.repository.GroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.namphong.backend.exception.NotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,26 +44,28 @@ public class GroupService {
 
     @Transactional
     public void deleteGroup(UUID groupId, UUID userId) {
-        groupRepository.findById(groupId).ifPresent(group -> {
-            if (group.getOwner().getId().equals(userId)) {
-                groupMemberRepository.deleteAllByGroupId(groupId);  // Delete all members first
-                groupRepository.delete(group);  // Then delete the group
-            } else {
-                throw new RuntimeException("Only the owner can delete the group");
-            }
-        });
+        StudyGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException("Group not found"));
+
+        if (group.getOwner().getId().equals(userId)) {
+            groupMemberRepository.deleteAllByGroupId(groupId);  // Delete all members first
+            groupRepository.delete(group);  // Then delete the group
+        } else {
+            throw new AccessDeniedException("Only the owner can delete the group");
+        }
     }
 
     @Transactional
     public StudyGroup updateGroupName(UUID groupId, String newName, UUID userId) {
-        return groupRepository.findById(groupId).map(group -> {
-            if (group.getOwner().getId().equals(userId)) {
-                group.setName(newName);
-                return groupRepository.save(group);
-            } else {
-                throw new RuntimeException("Only the owner can update the group name");
-            }
-        }).orElseThrow(() -> new RuntimeException("Group not found"));
+        StudyGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException("Group not found"));
+
+        if (group.getOwner().getId().equals(userId)) {
+            group.setName(newName);
+            return groupRepository.save(group);
+        } else {
+            throw new AccessDeniedException("Only the owner can update the group name");
+        }
     }
 
     public List<StudyGroup> getJoinedGroups(UUID userId) {
@@ -78,7 +82,7 @@ public class GroupService {
 
     public StudyGroup getGroupById(UUID groupId) {
         return groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Group not found"));
+            .orElseThrow(() -> new NotFoundException("Group not found"));
     }
 
     public List<GroupMember> getGroupMembers(UUID groupId) {

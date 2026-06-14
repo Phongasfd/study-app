@@ -16,6 +16,8 @@ import com.namphong.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.namphong.backend.exception.NotFoundException;
+import com.namphong.backend.exception.BadRequestException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -104,13 +106,13 @@ public class GroupRankingService {
 
     public GroupRankingResponse createGroupRanking(GroupRankingRequest request) {
         StudyGroup group = groupRepository.findById(request.getGroupId())
-                .orElseThrow(() -> new RuntimeException("Group not found"));
+            .orElseThrow(() -> new NotFoundException("Group not found"));
         UserEntity user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new NotFoundException("User not found"));
 
         Optional<GroupRanking> existingRanking = groupRankingRepository.findByGroupIdAndUserId(request.getGroupId(), request.getUserId());
         if (existingRanking.isPresent()) {
-            throw new RuntimeException("Group ranking already exists for this user in this group");
+            throw new BadRequestException("Group ranking already exists for this user in this group");
         }
 
         GroupRanking groupRanking = GroupRanking.builder()
