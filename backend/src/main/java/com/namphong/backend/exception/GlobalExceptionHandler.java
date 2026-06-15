@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-
-import javax.persistence.EntityNotFoundException;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.ConstraintViolationException;
+import org.springframework.http.HttpStatusCode;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,11 +59,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
                                                                   HttpHeaders headers,
-                                                                  HttpStatus status,
+                                                                  HttpStatusCode status,
                                                                   WebRequest request) {
         String path = extractPath(request);
         String message = "Malformed JSON request";
-        ApiError apiError = new ApiError(status.value(), status.getReasonPhrase(), message, path);
+        ApiError apiError = new ApiError(status.value(), HttpStatus.valueOf(status.value()).getReasonPhrase(), message, path);
         log.warn("HTTP message not readable: {}", ex.getMessage());
         return new ResponseEntity<>(apiError, headers, status);
     }
@@ -86,7 +86,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override // expcetion từ responseentityexceptionhandler 
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
-                                                                  HttpStatus status,
+                                                                  HttpStatusCode status,
                                                                   WebRequest request) {
         String path = extractPath(request);
         List<String> errors = new ArrayList<>();
@@ -94,7 +94,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 errors.add(fe.getField() + ": " + fe.getDefaultMessage()));
         ex.getBindingResult().getGlobalErrors().forEach(ge ->
                 errors.add(ge.getObjectName() + ": " + ge.getDefaultMessage()));
-        ApiError apiError = new ApiError(status.value(), status.getReasonPhrase(), "Validation failed", path, errors);
+        ApiError apiError = new ApiError(status.value(), HttpStatus.valueOf(status.value()).getReasonPhrase(), "Validation failed", path, errors);
         log.info("Validation failed: {}", errors);
         return new ResponseEntity<>(apiError, headers, status);
     }

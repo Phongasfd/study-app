@@ -29,7 +29,7 @@ public class RefreshTokenService {
     // token format: {uuid}:{randomBase64}
     // create new refresh token when user login 
     public String createRefreshTokenFor(UserEntity user, int daysValid) {
-        byte[] random = new byte[64];
+        byte[] random = new byte[48];
         secureRandom.nextBytes(random);
         String secret = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
 
