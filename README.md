@@ -54,23 +54,3 @@ cd frontend
 npm install
 npm run dev
 ```
-
-4. Tests (backend)
-
-```bash
-cd backend
-mvn test
-```
-
-Notes
-
-- Environment variables for databases are referenced in `docker-compose.dev.yml` and `backend/src/main/resources/application.yml`.
-- See [backend/HELP.md](backend/HELP.md#L1) for additional backend developer notes.
-
-Contributing
-
-- Open issues or PRs against the `main` branch. Follow code style in existing modules.
-
-License
-
-- Add a LICENSE file or replace this section with the chosen license.
