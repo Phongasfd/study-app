@@ -5,10 +5,13 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @Configuration
+@EnableConfigurationProperties(RateLimiterProperties.class) // Enable binding of RateLimiterProperties to application.yml 
+// tạo bean RateLimiterProperties và bind dữ liệu từ file properties vào
 public class AppConfig {
 
     @Bean
