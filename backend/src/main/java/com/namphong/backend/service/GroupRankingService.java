@@ -54,14 +54,44 @@ public class GroupRankingService {
             LocalDateTime activeSessionStartTime = null;
 
             if (activeSessionOpt.isPresent()) {
+
                 StudySession activeSession = activeSessionOpt.get();
-                isStudying = true;
-                activeSessionStartTime = activeSession.getStartTime();
-                if (activeSessionStartTime != null) {
-                    activeDuration = (int) java.time.Duration.between(activeSessionStartTime, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)).getSeconds();
+            
+                // Auto-close sessions older than 12 hours
+                if (activeSession.getStartTime() != null &&
+                        Duration.between(
+                                activeSession.getStartTime(),
+                                LocalDateTime.now()
+                        ).toHours() > 12) {
+            
+                    activeSession.setStatus(SessionStatus.COMPLETED);
+            
+                    activeSession.setEndTime(
+                            activeSession.getStartTime().plusHours(12));
+            
+                    activeSession.setDurationSeconds(
+                            (int) Duration.between(
+                                    activeSession.getStartTime(),
+                                    activeSession.getEndTime()
+                            ).getSeconds());
+            
+                    studySessionRepository.save(activeSession);
+            
+                } else {
+            
+                    isStudying = true;
+            
+                    activeSessionStartTime =
+                            activeSession.getStartTime();
+            
+                    activeDuration =
+                            (int) Duration.between(
+                                    activeSessionStartTime,
+                                    LocalDateTime.now()
+                            ).getSeconds();
                 }
             }
-
+            
             int totalDuration = dbDuration + activeDuration;
 
             // Calculate daily completed duration for the timer base

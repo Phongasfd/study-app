@@ -22,7 +22,34 @@ public class StudySessionService {
     private final GroupRankingRepository groupRankingRepository;
     private final ChatWebSocketHandler chatWebSocketHandler;
 
+    @Transactional
     public StudySession createStudySession(StudySessionRequest studySession, UserEntity user) {
+
+        // Check if user already has a running session
+        Optional<StudySession> existingSession = studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(
+                                user.getId(),
+                                SessionStatus.RUNNING);
+
+        if (existingSession.isPresent()) {
+
+            StudySession oldSession = existingSession.get();
+                            
+            LocalDateTime now = LocalDateTime.now();
+                            
+            oldSession.setEndTime(now);
+            oldSession.setStatus(SessionStatus.COMPLETED);
+                            
+            if (oldSession.getStartTime() != null) {
+                oldSession.setDurationSeconds(
+                    (int) Duration.between(
+                    oldSession.getStartTime(),
+                    now
+                        ).getSeconds());
+        }
+                            
+            studySessionRepository.save(oldSession);
+    }
+
         StudySession session = new StudySession();
         session.setUser(user);
         session.setStartTime(studySession.getStartTime() != null ? studySession.getStartTime() : LocalDateTime.now());
