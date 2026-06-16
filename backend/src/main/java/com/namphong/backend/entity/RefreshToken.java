@@ -20,6 +20,9 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    private Long version;
+
     // hashed token secret part
     @Column(nullable = false)
     private String tokenHash;

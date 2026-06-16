@@ -6,6 +6,7 @@ import com.namphong.backend.exception.BadRequestException;
 import com.namphong.backend.repository.RefreshTokenRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -31,23 +32,21 @@ public class RefreshTokenService {
     public String createRefreshTokenFor(UserEntity user, int daysValid) {
         byte[] random = new byte[48];
         secureRandom.nextBytes(random);
-        String secret = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
-
-        UUID id = UUID.randomUUID();
-
+        String secret = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(random);
+    
         RefreshToken token = RefreshToken.builder()
-                .id(id)
                 .user(user)
                 .tokenHash(passwordEncoder.encode(secret))
                 .expiresAt(LocalDateTime.now().plusDays(daysValid))
                 .revoked(false)
                 .build();
-
-        refreshTokenRepository.save(token);
-
-        return id.toString() + ":" + secret;
+    
+        token = refreshTokenRepository.save(token);
+    
+        return token.getId() + ":" + secret;
     }
-
     // logout all sessions of user 
     public void revokeAllTokensFor(UserEntity user) {
         List<RefreshToken> tokens = refreshTokenRepository.findByUser(user);
@@ -57,6 +56,7 @@ public class RefreshTokenService {
         refreshTokenRepository.saveAll(tokens);
     }
 
+    @Transactional
     // to replace old refresh token with new refresh
     public RefreshResult rotateRefreshToken(String presentedToken) {
         if (presentedToken == null || !presentedToken.contains(":")) throw new BadRequestException("Invalid refresh token");

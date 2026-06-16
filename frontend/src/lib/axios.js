@@ -1,4 +1,5 @@
 import axios from "axios";
+import i18next from 'i18next';
 
 const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -31,6 +32,13 @@ axiosClient.interceptors.request.use((config) => {
     config.headers["X-XSRF-TOKEN"] = csrfToken;
   }
 
+  // set Accept-Language header from current i18n language
+  try {
+    config.headers['Accept-Language'] = i18next.language || navigator.language || 'vi';
+  } catch (e) {
+    // ignore
+  }
+
   return config;
 });
 
@@ -59,8 +67,13 @@ axiosClient.interceptors.response.use(
   async error => {
     const originalRequest = error.config; 
 
+    const isRefreshRequest =
+    originalRequest?.url?.includes('/auth/refresh');
+
+
+
     // If 401 and not retrying, try refresh
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    if (error.response && error.response.status === 401 && !originalRequest._retry && !isRefreshRequest) {
       /**
        * Đã có request khác đang refresh rồi
        * không refresh lại lần nữa
