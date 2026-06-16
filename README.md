@@ -2,52 +2,69 @@
 
 A full-stack study and focus application with real-time chat, group management, session tracking, and study analytics.
 
-**Tech stack**
+## Tech Stack
 
-- **Backend:** Java Spring Boot (see [backend/pom.xml](backend/pom.xml#L1)) — WebMVC, WebSocket, Spring Security, JPA, Redis, MongoDB, JWT, Bucket4j rate limiting. Java version: 25.
-- **Frontend:** React + Vite (see [frontend/package.json](frontend/package.json#L1)) — React 19, react-router, i18n, axios.
-- **Dev infra:** Docker Compose for local DBs ([docker-compose.dev.yml](docker-compose.dev.yml#L1)).
+- **Backend:** Java Spring Boot, WebSocket, Spring Security, JPA, PostgreSQL, MongoDB, JWT, Bucket4j rate limiting. Java version: 25.
+- **Frontend:** React + Vite — React 19, react-router, axios.
+- **Dev infra:** Docker Compose for local DBs.
 
-**Key features**
+## Key Features
 
-- Real-time chat & websockets (see `backend/src/main/java/com/namphong/backend`)
-- Group creation, membership, and ranking
+- Real-time chat & WebSockets
+- Group creation, membership, and real-time group ranking
 - Session-based study tracking and statistics
 - Authentication & OAuth2 support
-- Internationalization (English & Vietnamese)
 - Rate limiting and security hardening
 
-**Important files**
+## Screenshots
 
-- Design system and UI tokens: [DESIGN.md](DESIGN.md#L1)
-- Backend entrypoint: [backend/src/main/java/com/namphong/backend/BackendApplication.java](backend/src/main/java/com/namphong/backend/BackendApplication.java#L1)
-- Backend config: [backend/src/main/resources/application.yml](backend/src/main/resources/application.yml#L1)
-- Frontend README: [frontend/README.md](frontend/README.md#L1)
-- Docker compose (dev): [docker-compose.dev.yml](docker-compose.dev.yml#L1)
+### Dashboard
+![Dashboard](docs/images/dashboard.png)
 
-Getting started (development)
+### Auth Page
+![Auth Page](docs/images/auth-page.png)
 
-1. Run local databases (recommended)
+### Study Groups
+![Groups](docs/images/groups.png)
+
+### Real-time Chat
+![Chat](docs/images/chat.png)
+
+### Study Statistics
+![Statistics](docs/images/stats.png)
+
+## Important Files
+
+- Design system and UI tokens: [DESIGN.md](DESIGN.md)
+- Backend entrypoint: [BackendApplication.java](backend/src/main/java/com/namphong/backend/BackendApplication.java)
+- Frontend README: [frontend/README.md](frontend/README.md)
+- Docker compose (dev): [docker-compose.dev.yml](docker-compose.dev.yml)
+
+## Getting Started
+
+### 1. Run local databases
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-2. Backend (Windows)
+### 2. Backend
+
+Windows:
 
 ```powershell
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Or (Unix/macOS)
+Unix/macOS:
 
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-3. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
