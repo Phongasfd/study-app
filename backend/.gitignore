@@ -34,5 +34,4 @@ build/
 
 .env 
 **/application-dev.yml
-**/application-prod.yml
 **/application.yml

@@ -3,6 +3,7 @@ package com.namphong.backend.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -26,12 +27,23 @@ public class AppConfig {
         return mapper;
     } // tu tao bean objectmapper de fix loi spring k tim dc bean
 
+    // @Bean
+    // public MongoClient mongoClient() {
+    //     return MongoClients.create(
+    //             "mongodb://admin:password@localhost:27017/study_app_chat?authSource=admin"
+    //     );
+    // } // for local only
+
+    
+    // for production, we will use environment variable to store mongo uri
+    @Value("${spring.data.mongodb.uri}")
+    private String mongoUri;
+
     @Bean
     public MongoClient mongoClient() {
-        return MongoClients.create(
-                "mongodb://admin:password@localhost:27017/study_app_chat?authSource=admin"
-        );
+        return MongoClients.create(mongoUri);
     }
+
     // Object đại diện cho toàn bộ kết nối mongo
     // kết nối tới localhost:27017, gửi username password và xác thực ở database, tạo connection pool để tái sử dụng 
 
