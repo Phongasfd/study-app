@@ -1,27 +1,29 @@
-### Build stage: use Maven with JDK to build the application
+### Build stage
 FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /workspace
 
-# copy pom and download dependencies first for better caching
+# Copy pom first for dependency caching
 COPY pom.xml ./
-COPY mvnw mvnw
-COPY .mvn .mvn
+
 RUN mvn -B -ntp dependency:go-offline
 
-# copy sources and build
+# Copy source code
 COPY src ./src
-RUN mvn -B -ntp package
+
+# Build application
+RUN mvn -B -ntp clean package -DskipTests
 
 
-### Run stage: use lightweight JRE
+### Runtime stage
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Copy the fat jar built by Maven
+# Copy jar from builder stage
 COPY --from=builder /workspace/target/*.jar app.jar
 
+# Create non-root user
 RUN addgroup --system spring && adduser --system spring --ingroup spring
 
 USER spring
