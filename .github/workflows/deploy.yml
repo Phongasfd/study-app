@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   workflow_run:
     workflows:
-      - CI
+      - Backend CI
     branches:
       - main
     types:
