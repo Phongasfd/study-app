@@ -3,30 +3,24 @@
   
   WORKDIR /app
   
-  # install deps
   COPY package*.json ./
   RUN npm ci --legacy-peer-deps
   
-  # build-time variables (Vite)
   ARG VITE_API_BASE_URL
   ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
   
-  # copy source and build
   COPY . .
   RUN npm run build
   
   
-  # -------- PRODUCTION STAGE --------
+  # -------- RUNTIME STAGE (NO NGINX CONFIG) --------
   FROM nginx:alpine
   
-  # clear default nginx html
-  RUN rm -rf /usr/share/nginx/html/*
-  
-  # copy build output
+  # copy build only
   COPY --from=builder /app/dist /usr/share/nginx/html
   
-  # SPA config
-  COPY nginx.conf /etc/nginx/conf.d/default.conf
+  # optional: remove default config (safe)
+  RUN rm -f /etc/nginx/conf.d/default.conf
   
   EXPOSE 80
   
