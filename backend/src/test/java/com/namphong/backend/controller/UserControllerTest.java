@@ -1,6 +1,7 @@
 package com.namphong.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.namphong.backend.config.RateLimiterProperties;
 import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.dto.UserLoginDTO;
 import com.namphong.backend.service.RefreshTokenService;
@@ -48,7 +49,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
-    // mock service vì không dùng service thật 
+    // mock service vì không dùng service thật
+    @MockitoBean
+    private RateLimiterProperties rateLimiterProperties;
 
     @MockitoBean
     private RefreshTokenService refreshTokenService;
