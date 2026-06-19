@@ -46,8 +46,15 @@ class RefreshTokenServiceTest {
                 .build();
 
         when(repo.findById(id)).thenReturn(Optional.of(current));
-        when(repo.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+        when(repo.save(any(RefreshToken.class))).thenAnswer(i -> {
+            RefreshToken token = i.getArgument(0);
 
+            if (token.getId() == null) {
+                token.setId(UUID.randomUUID());
+            }
+
+            return token;
+        });
         var result = service.rotateRefreshToken(id.toString() + ":" + secret);
         assertNotNull(result);
         assertNotNull(result.refreshToken);
