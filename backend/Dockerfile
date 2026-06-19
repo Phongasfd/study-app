@@ -1,5 +1,5 @@
 ### Build stage: use Maven with JDK to build the application
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9.6-eclipse-temurin-25 AS builder
 
 WORKDIR /workspace
 
@@ -15,7 +15,7 @@ RUN mvn -B -ntp package
 
 
 ### Run stage: use lightweight JRE
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:25-jre
 
 WORKDIR /app
 
