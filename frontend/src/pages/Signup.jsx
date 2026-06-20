@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react'; 
 import './Auth.css';
 import { register, googleAuth } from '../lib/api';
+import { useTranslation } from 'react-i18next';
 
 
 const Signup = () => {
@@ -11,6 +12,7 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(''); 
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,33 +43,33 @@ const Signup = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1 className="auth-title">Create an account</h1>
-        <p className="auth-subtitle">Join Deep Focus and start your study journey</p>
+        <h1 className="auth-title">{t('signup.createAccount')}</h1>
+        <p className="auth-subtitle">{t('signup.subtitle')}</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input type="text" id="username" placeholder="StudyMaster99" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <label htmlFor="username">{t('signup.usernameLabel')}</label>
+            <input type="text" id="username" placeholder={t('signup.usernamePlaceholder')} value={username} onChange={(e) => setUsername(e.target.value)} required />
           </div>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input type="email" id="email" placeholder="student@university.edu" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <label htmlFor="email">{t('signup.emailLabel')}</label>
+            <input type="email" id="email" placeholder={t('signup.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input type="password" id="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <label htmlFor="password">{t('signup.passwordLabel')}</label>
+            <input type="password" id="password" placeholder={t('signup.passwordPlaceholder')} value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input type="password" id="confirmPassword" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+            <label htmlFor="confirmPassword">{t('signup.confirmPasswordLabel')}</label>
+            <input type="password" id="confirmPassword" placeholder={t('signup.confirmPasswordPlaceholder')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
           </div>
           <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? 'Signing Up...' : 'Sign Up'}
+            {loading ? t('signup.signingUp') : t('auth.signup')}
           </button>
         </form>
 
         <div className="auth-divider">
-          <span>or</span>
+          <span>{t('auth.or')}</span>
         </div>
 
         <button className="auth-google" onClick={googleAuth}>
@@ -77,11 +79,11 @@ const Signup = () => {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          Sign up with Google
+          {t('signup.signUpWithGoogle')}
         </button>
 
         <p className="auth-redirect">
-          Already have an account? <Link to="/login">Log in</Link>
+          {t('signup.alreadyHaveAccount')} <Link to="/login">{t('auth.login')}</Link>
         </p>
       </div>
     </div>

@@ -11,6 +11,7 @@ import AIAssistant from './pages/AIAssistant';
 import { AuthProvider } from './context/AuthContext';
 import { TimerProvider } from './context/TimerContext';
 import './App.css';
+import './i18n';
 
 const AppContent = () => {
   const location = useLocation();

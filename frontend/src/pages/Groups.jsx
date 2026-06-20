@@ -1,4 +1,5 @@
 import './Groups.css';
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup,
 
 const Groups = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false); // Modal visibility state
   const [formData, setFormData] = useState({
     name: '',
@@ -33,7 +35,7 @@ const Groups = () => {
       navigate(`/groups/${id}`);
     } catch (error) {
       console.error('Error joining group:', error);
-      alert('Failed to join group: ' + error.message);
+      alert(t('groups.joinFailed') + ': ' + (error.message || ''));
     }
   }; // for user want to join group 
 
@@ -61,7 +63,7 @@ const Groups = () => {
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Please enter a group name');
+      alert(t('groups.pleaseEnterGroupName'));
       return;
     }
 
@@ -78,7 +80,7 @@ const Groups = () => {
       setGroupsJoined(prev => [...prev, { ...newGroup, userRank: 1 }]);
     } catch (error) {
       console.error('Error creating group:', error);
-      alert('Failed to create group. Please try again.');
+      alert(t('groups.failedCreate'));
     } finally {
       setIsLoading(false);
     }
@@ -153,10 +155,10 @@ const Groups = () => {
       {/* My Groups Section */}
       <section className="groups-section">
         <div className="section-header">
-          <h2 className="h3 text-on-background">My Groups</h2>
+          <h2 className="h3 text-on-background">{t('groups.myGroups')}</h2>
           <button className="create-group-btn" onClick={handleOpenModal}>
             <span className="material-symbols-outlined">add</span>
-            Create New
+            {t('groups.createNew')}
           </button>
         </div>
 
@@ -167,21 +169,21 @@ const Groups = () => {
                 <div className="icon-badge bg-primary-container text-white">
                   <span className="material-symbols-outlined">auto_stories</span>
                 </div>
-                <span className="status-badge bg-secondary-container text-on-secondary-container">Active</span>
+                  <span className="status-badge bg-secondary-container text-on-secondary-container">{t('groups.active')}</span>
               </div>
               <h3 className="body-lg font-h h3-margin">{group.name}</h3>
               <div className="group-stats">
                 <div className="stat-item">
                   <span className="material-symbols-outlined icon-sm">group</span>
-                  <span className="body-md text-sm">{group.maxMembers} Members</span>
+                  <span className="body-md text-sm">{group.maxMembers} {t('groups.members')}</span>
                 </div>
                 <div className="stat-item">
                   <span className="material-symbols-outlined icon-sm">leaderboard</span>
-                  <span className="body-md text-sm">Rank: {group.userRank || '-'}</span>
+                  <span className="body-md text-sm">{t('groups.rank')}: {group.userRank || '-'}</span>
                 </div>
               </div>
               <button className="btn-enter" onClick={() => handleEnterGroup(group.id)}>
-                Enter Group
+                {t('groups.enterGroup')}
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             </div>
@@ -193,14 +195,14 @@ const Groups = () => {
       {/* Trending Groups Section */}
       <section className="groups-section">
         <div className="section-header-wrap">
-          <h2 className="h3 text-on-background">Trending Groups</h2>
+          <h2 className="h3 text-on-background">{t('groups.trendingGroups')}</h2>
           <div className="filter-controls">
             <div className="search-bar-wrap">
               <span className="material-symbols-outlined search-icon">search</span>
-              <input
+                <input
                 type="text"
                 className="search-input"
-                placeholder="Find groups by name..."
+                placeholder={t('groups.searchPlaceholder')}
                 value={groupSearchQuery}
                 onChange={(e) => setGroupSearchQuery(e.target.value)}
               />
@@ -219,7 +221,7 @@ const Groups = () => {
                 <div>
                   <div className="trending-tags">
                     <span className="tag-badge bg-tertiary-fixed text-on-tertiary-fixed">Active</span>
-                    <span className="tag-text">• {group.maxMembers} max members</span>
+                    <span className="tag-text">• {group.maxMembers} {t('groups.maxMembersText')}</span>
                   </div>
                   <h4 className="body-lg font-h trending-title">{group.name}</h4>
                   <p className="body-md text-sm text-on-surface-variant line-clamp-2">Owned by {group.ownerName}. Join this group to study together!</p>
@@ -230,7 +232,7 @@ const Groups = () => {
                     <div className="avatar-sm bg-slate-300"></div>
                     <div className="avatar-sm bg-slate-400"></div>
                   </div>
-                  <button className="btn-join" onClick={() => handleJoinGroup(group.id)}>Join</button>
+                  <button className="btn-join" onClick={() => handleJoinGroup(group.id)}>{t('groups.join')}</button>
                 </div>
               </div>
             </div>
@@ -243,7 +245,7 @@ const Groups = () => {
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="h3 text-on-background">Create New Group</h2>
+              <h2 className="h3 text-on-background">{t('groups.createGroupTitle')}</h2>
               <button
                 className="modal-close-btn"
                 onClick={handleCloseModal}
@@ -256,7 +258,7 @@ const Groups = () => {
             <form onSubmit={handleCreateGroup} className="modal-form">
               <div className="form-group">
                 <label htmlFor="name" className="label-sm text-on-surface-variant">
-                  Group Name *
+                  {t('groups.groupName')} *
                 </label>
                 <input
                   type="text"
@@ -264,7 +266,7 @@ const Groups = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="e.g., Advanced Calculus II"
+                  placeholder={t('groups.groupNamePlaceholder')}
                   className="form-input"
                   required
                 />
@@ -272,7 +274,7 @@ const Groups = () => {
 
               <div className="form-group">
                 <label htmlFor="subject" className="label-sm text-on-surface-variant">
-                  Max Members
+                  {t('groups.maxMembers')}
                 </label>
                 <input
                   type="text"
@@ -280,7 +282,7 @@ const Groups = () => {
                   name="maxMembers"
                   value={formData.maxMembers}
                   onChange={handleInputChange}
-                  placeholder="e.g., 20"
+                  placeholder={t('groups.maxMembersPlaceholder')}
                   className="form-input"
                 />
               </div>
@@ -291,14 +293,14 @@ const Groups = () => {
                   className="btn-secondary"
                   onClick={handleCloseModal}
                 >
-                  Cancel
+                  {t('auth.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="btn-primary"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating...' : 'Create Group'}
+                  {isLoading ? t('groups.creating') : t('groups.createGroup')}
                 </button>
               </div>
             </form>

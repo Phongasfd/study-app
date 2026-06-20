@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Stats.css';
+import { useTranslation } from 'react-i18next';
 import { getWeeklyStats, syncDailyStat, getMonthlyStats, getWeeklySubjectStats, getMonthlySubjectStats } from '../lib/api';
 
 // Day labels aligned with Java's DayOfWeek Mon=1 … Sun=7
@@ -52,6 +53,7 @@ const WEEKLY_TRENDS = [
 ];
 
 const Stats = () => {
+  const { t } = useTranslation();
   const [viewType, setViewType] = useState('weekly');
   const [dailyGoal, setDailyGoal] = useState(() => {
     const stored = localStorage.getItem('dailyGoal');
@@ -205,8 +207,8 @@ const Stats = () => {
                 <span className="material-symbols-outlined">flag</span>
               </div>
               <div>
-                <h3 className="h3 goal-modal-title">Set Daily Goal</h3>
-                <p className="body-md goal-modal-sub">How many hours do you aim to study each day?</p>
+                <h3 className="h3 goal-modal-title">{t('stats.setDailyGoal')}</h3>
+                <p className="body-md goal-modal-sub">{t('stats.howManyHours')}</p>
               </div>
             </div>
 
@@ -229,7 +231,7 @@ const Stats = () => {
                   onKeyDown={handleGoalKeyDown}
                   autoFocus
                 />
-                <span className="goal-input-unit">hours</span>
+                <span className="goal-input-unit">{t('stats.hoursUnit')}</span>
               </div>
               <button
                 className="goal-stepper-btn"
@@ -246,18 +248,18 @@ const Stats = () => {
                   className={`goal-preset-btn ${parseFloat(goalInput) === h ? 'active' : ''}`}
                   onClick={() => setGoalInput(String(h))}
                 >
-                  {h}h
+                  {h}{t('stats.hoursShort')}
                 </button>
               ))}
             </div>
 
             <div className="goal-modal-actions">
               <button className="goal-cancel-btn" onClick={() => setIsEditingGoal(false)}>
-                Cancel
+                {t('auth.cancel')}
               </button>
               <button className="goal-save-btn" onClick={handleSaveGoal}>
                 <span className="material-symbols-outlined">check</span>
-                Save Goal
+                {t('stats.saveGoal')}
               </button>
             </div>
           </div>
@@ -267,12 +269,12 @@ const Stats = () => {
       {/* Statistics Header */}
       <div className="stats-header">
         <div className="stats-title-group">
-          <h1 className="h1 text-primary">Performance Insights</h1>
+          <h1 className="h1 text-primary">{t('stats.title')}</h1>
           <p className="body-md text-on-surface-variant">
             {isMonthly ? (
-              <>You've studied for <span className="text-primary font-bold">{totalHours.toFixed(1)} hours</span> this month.</>
+              <>{t('stats.youStudiedMonth', { hours: totalHours.toFixed(1) })}</>
             ) : (
-              <>You've studied for <span className="text-primary font-bold">{totalHours.toFixed(1)} hours</span> this week.</>
+              <>{t('stats.youStudiedWeek', { hours: totalHours.toFixed(1) })}</>
             )}
           </p>
         </div>
@@ -280,14 +282,14 @@ const Stats = () => {
           <button
             className={`toggle-btn ${!isMonthly ? 'active' : ''}`}
             onClick={() => setViewType('weekly')}
-          >
-            Week
+            >
+            {t('stats.week')}
           </button>
           <button
             className={`toggle-btn ${isMonthly ? 'active' : ''}`}
             onClick={() => setViewType('monthly')}
-          >
-            Month
+            >
+            {t('stats.month')}
           </button>
         </div>
       </div>
@@ -299,21 +301,21 @@ const Stats = () => {
             <span className="material-symbols-outlined stat-chip-icon">calendar_month</span>
             <div>
               <p className="stat-chip-value">{totalHours.toFixed(0)}h</p>
-              <p className="stat-chip-label">Total This Month</p>
+              <p className="stat-chip-label">{t('stats.totalThisMonth')}</p>
             </div>
           </div>
           <div className="stat-chip">
             <span className="material-symbols-outlined stat-chip-icon">show_chart</span>
             <div>
               <p className="stat-chip-value">{(totalHours / 4).toFixed(1)}h</p>
-              <p className="stat-chip-label">Avg Per Week</p>
+              <p className="stat-chip-label">{t('stats.avgPerWeek')}</p>
             </div>
           </div>
           <div className="stat-chip">
             <span className="material-symbols-outlined stat-chip-icon">emoji_events</span>
             <div>
               <p className="stat-chip-value">{Math.max(...chartData.map((d) => d.hours)).toFixed(1)}h</p>
-              <p className="stat-chip-label">Best Week</p>
+              <p className="stat-chip-label">{t('stats.bestWeek')}</p>
             </div>
           </div>
         </div>
@@ -324,10 +326,10 @@ const Stats = () => {
         {/* Chart Card */}
         <div className="bento-card col-span-8">
           <div className="card-header">
-            <h3 className="h3">{isMonthly ? 'Study Hours This Month' : 'Study Hours This Week'}</h3>
+            <h3 className="h3">{isMonthly ? t('stats.studyThisMonth') : t('stats.studyThisWeek')}</h3>
             <div className="legend">
               <div className="legend-dot"></div>
-              <span className="label-sm text-on-surface-variant">Actual Hours</span>
+              <span className="label-sm text-on-surface-variant">{t('stats.actualHours')}</span>
             </div>
           </div>
 
@@ -357,8 +359,8 @@ const Stats = () => {
         {/* Daily Goal Ring Card */}
         <div className="bento-card col-span-4 daily-goal-card">
           <div className="daily-goal-header">
-            <h3 className="h3">Daily Goal</h3>
-            <button className="edit-goal-btn" onClick={handleOpenGoalEditor} title="Change daily goal">
+            <h3 className="h3">{t('stats.dailyGoal')}</h3>
+            <button className="edit-goal-btn" onClick={handleOpenGoalEditor} title={t('stats.changeDailyGoal')}> 
               <span className="material-symbols-outlined">edit</span>
             </button>
           </div>
@@ -377,18 +379,18 @@ const Stats = () => {
             </svg>
             <div className="goal-center">
               <span className="h1">{Math.round(pct * 100)}%</span>
-              <span className="label-sm uppercase opacity-80">Complete</span>
+              <span className="label-sm uppercase opacity-80">{t('stats.complete')}</span>
             </div>
           </div>
 
           <div className="goal-text">
             <p className="body-md text-primary-fixed">
-              {studiedToday}h / {dailyGoal}h studied today
+              {t('stats.studiedToday', { studied: studiedToday, goal: dailyGoal })}
             </p>
             <p className="label-sm text-primary-fixed-dim mt-1">
               {pct >= 1
-                ? '🎉 Goal achieved! Amazing work.'
-                : `Keep it up! ${(dailyGoal - studiedToday).toFixed(1)}h to go.`}
+                ? t('stats.goalAchieved')
+                : t('stats.keepItUp', { hours: (dailyGoal - studiedToday).toFixed(1) })}
             </p>
           </div>
         </div>
@@ -396,7 +398,7 @@ const Stats = () => {
         {/* Time per Subject */}
         <div className="bento-card col-span-12">
           <div className="card-header">
-            <h3 className="h3">Time per Subject</h3>
+            <h3 className="h3">{t('stats.timePerSubject')}</h3>
           </div>
 
           <div className="subject-grid">
@@ -422,15 +424,15 @@ const Stats = () => {
 
         {/* Focus Trends */}
         <div className={`col-span-12 trends-grid ${isMonthly ? 'trends-grid-4' : ''}`}>
-          {trends.map((t, i) => (
+          {trends.map((trend, i) => (
             <div className="trend-card" key={i}>
-              <div className={`trend-icon-box ${t.iconClass}`}>
-                <span className="material-symbols-outlined">{t.icon}</span>
+              <div className={`trend-icon-box ${trend.iconClass}`}>
+                <span className="material-symbols-outlined">{trend.icon}</span>
               </div>
               <div>
-                <p className="trend-label">{t.label}</p>
-                <h4 className="h3 trend-value text-primary">{t.value}</h4>
-                <p className="label-sm text-on-surface-variant">{t.sub}</p>
+                <p className="trend-label">{trend.label}</p>
+                <h4 className="h3 trend-value text-primary">{trend.value}</h4>
+                <p className="label-sm text-on-surface-variant">{trend.sub}</p>
               </div>
             </div>
           ))}

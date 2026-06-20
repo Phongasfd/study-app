@@ -19,8 +19,8 @@ export const register = async (username, email, password) => {
 };
 
 export const googleAuth = () => {
- // window.location.href = 'http://localhost:8080/oauth2/authorization/google';
-  window.location.href = 'https://13.214.163.45.nip.io/api/login/oauth2/code/google';
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  window.location.href = `${apiBaseUrl}/oauth2/authorization/google`;
 }
 
 export const login = async (email, password) => {

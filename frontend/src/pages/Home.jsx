@@ -3,6 +3,7 @@ import { getSubjects, createSubject, deleteSubject } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import './Pages.css';
 import { useTimer } from '../context/TimerContext';
+import { useTranslation } from 'react-i18next';
 
 const Home = () => {
   const {
@@ -19,6 +20,7 @@ const Home = () => {
   } = useTimer();
 
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [subjects, setSubjects] = useState([]); // for subjects
   const [isAdding, setIsAdding] = useState(false); // for adding subjects
   const [newSubjectName, setNewSubjectName] = useState(''); // for new subject name
@@ -71,7 +73,7 @@ const Home = () => {
       {/* Context Badge */}
       <div className="context-badge">
         <span className="badge-dot"></span>
-        Deep Focus Session
+        {t('home.contextBadge')}
       </div>
 
       {/* Central Timer Component */}
@@ -89,7 +91,7 @@ const Home = () => {
           </svg>
           <div className="timer-display">
             <span className="timer-text">{formatTime(timeElapsed)}</span>
-            <span className="timer-label">{activeSubject ? activeSubject.name : 'No Subject'}</span>
+            <span className="timer-label">{activeSubject ? activeSubject.name : t('home.noSubject')}</span>
           </div>
         </div>
 
@@ -105,7 +107,7 @@ const Home = () => {
             <span className="material-symbols-outlined filled">
               {isActive ? 'pause' : 'play_arrow'}
             </span>
-            {isActive ? 'Pause Focus' : 'Resume Focus'}
+            {isActive ? t('home.pauseFocus') : t('home.resumeFocus')}
           </button>
           
         </div>
@@ -114,7 +116,7 @@ const Home = () => {
       {/* Subjects Section */}
       <section className="subjects-section">
         <div className="subjects-header">
-          <h3 className="h3 section-title">My Subjects</h3>
+          <h3 className="h3 section-title">{t('home.mySubjects')}</h3>
         </div>
         <div className="subjects-row">
           {subjects.map((subject) => (
@@ -139,10 +141,10 @@ const Home = () => {
 
           {isAdding ? (
             <div className="subject-chip add-subject-input-container">
-              <input
+                <input
                 autoFocus
                 className="add-subject-input"
-                placeholder="Subject Name..."
+                placeholder={t('home.addSubjectPlaceholder')}
                 value={newSubjectName}
                 onChange={(e) => setNewSubjectName(e.target.value)}
                 onKeyDown={handleAddSubject}
@@ -164,7 +166,7 @@ const Home = () => {
               }}
             >
               <span className="material-symbols-outlined subject-icon">add</span>
-              Add Subject
+              {t('home.addSubject')}
             </button>
           )}
         </div>

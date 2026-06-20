@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './AIAssistant.css';
+import { useTranslation } from 'react-i18next';
 
 const AIAssistant = () => {
   const [isListening, setIsListening] = useState(true);
   const [pulse, setPulse] = useState(false);
+
+  const { t } = useTranslation();
 
   // Simulate pulse effect for AI speaking
   useEffect(() => {
@@ -22,7 +25,7 @@ const AIAssistant = () => {
     <div className="focus-container ai-assistant-page">
       <div className="context-badge ai-badge">
         <span className={`badge-dot ${isListening ? 'active' : 'paused'}`}></span>
-        AI Study Companion
+        {t('ai.title')}
       </div>
 
       <div className="ai-main-interaction">
@@ -39,16 +42,16 @@ const AIAssistant = () => {
 
         <div className="ai-transcript">
           <p className="ai-message h3">
-            "I'm ready. Let's review Advanced Calculus."
+            {t('ai.readyMessage')}
           </p>
           <p className="user-message body-lg">
-            Can you explain the chain rule again?
+            {t('ai.exampleQuestion')}
           </p>
         </div>
       </div>
 
       <div className="ai-controls">
-        <button className="icon-btn-large secondary">
+        <button className="icon-btn-large secondary" title={t('ai.controls.settings')}>
           <span className="material-symbols-outlined">settings</span>
         </button>
         <button 
@@ -59,7 +62,7 @@ const AIAssistant = () => {
             {isListening ? 'mic' : 'mic_off'}
           </span>
         </button>
-        <button className="icon-btn-large error">
+        <button className="icon-btn-large error" title={t('ai.controls.endCall')}>
           <span className="material-symbols-outlined filled">call_end</span>
         </button>
       </div>
