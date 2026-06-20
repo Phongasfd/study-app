@@ -11,5 +11,5 @@ public interface GroupRankingRepository extends JpaRepository<GroupRanking, UUID
     List<GroupRanking> findByGroupIdOrderByTotalDurationDesc(UUID groupId);
     Optional<GroupRanking> findByGroupIdAndUserId(UUID groupId, UUID userId);
 
-    void deleteByStudyGroupId(UUID groupId);
+    void deleteByStudyGroup_Id(UUID studyGroupId);
 }
