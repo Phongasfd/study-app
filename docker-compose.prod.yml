@@ -43,14 +43,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  frontend:
-    image: namphong134/study-app-frontend:latest
-    restart: always
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
-    depends_on:
-      - backend
-
   nginx:
     image: nginx:alpine
     container_name: gym_nginx
@@ -60,12 +52,10 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro # Mount the custom nginx configuration
-      - /etc/ssl/certs/gym.crt:/etc/ssl/certs/gym.crt:ro # Mount the SSL certificate
-      - /etc/ssl/private/gym.key:/etc/ssl/private/gym.key:ro
+      - /etc/ssl/certs/study.crt:/etc/ssl/certs/study.crt:ro # Mount the SSL certificate
+      - /etc/ssl/private/study.key:/etc/ssl/private/study.key:ro
     depends_on: # Ensure nginx starts after the backend and frontend services
       - backend
-      - frontend
-
 
 # Optional: if you want the compose file to also start DBs (not recommended for real production),
 # uncomment and configure the following services and point the backend to use them.
