@@ -20,7 +20,7 @@ export const register = async (username, email, password) => {
 
 export const googleAuth = () => {
  // window.location.href = 'http://localhost:8080/oauth2/authorization/google';
-  window.location.href = 'https://13.214.163.45.nip.io:8080/login/oauth2/code/google';
+  window.location.href = 'https://13.214.163.45.nip.io/api/login/oauth2/code/google';
 }
 
 export const login = async (email, password) => {
