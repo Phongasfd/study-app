@@ -5,6 +5,7 @@ import com.namphong.backend.entity.GroupMember;
 import com.namphong.backend.entity.StudyGroup;
 import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.repository.GroupMemberRepository;
+import com.namphong.backend.repository.GroupRankingRepository;
 import com.namphong.backend.repository.GroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupRankingRepository groupRankingRepository;
 
     @Transactional
     public StudyGroup createGroup(StudyGroupRequest request, UserEntity owner) {
@@ -49,6 +51,7 @@ public class GroupService {
 
         if (group.getOwner().getId().equals(userId)) {
             groupMemberRepository.deleteAllByGroupId(groupId);  // Delete all members first
+            groupRankingRepository.deleteByStudyGroupId(groupId);
             groupRepository.delete(group);  // Then delete the group
         } else {
             throw new AccessDeniedException("Only the owner can delete the group");
