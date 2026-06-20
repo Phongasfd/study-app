@@ -8,6 +8,14 @@ A full-stack study and focus application with real-time chat, group management, 
 - **Frontend:** React + Vite — React 19, react-router, axios.
 - **Dev infra:** Docker Compose for local DBs.
 
+## Deployment
+- **Link**: https://13.214.163.45.nip.io/
+
+The project is deployed on AWS EC2 free tier with self-signed SSL certificates.
+### Image
+![image](docs/images/deploy.png)
+
+
 ## Key Features
 
 - Real-time chat & WebSockets
