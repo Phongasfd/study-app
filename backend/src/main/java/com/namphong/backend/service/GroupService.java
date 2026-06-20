@@ -51,7 +51,7 @@ public class GroupService {
 
         if (group.getOwner().getId().equals(userId)) {
             groupMemberRepository.deleteAllByGroupId(groupId);  // Delete all members first
-            groupRankingRepository.deleteByStudyGroup_Id(groupId);
+            groupRankingRepository.deleteByGroup_Id(groupId);
             groupRepository.delete(group);  // Then delete the group
         } else {
             throw new AccessDeniedException("Only the owner can delete the group");
