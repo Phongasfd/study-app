@@ -29,7 +29,9 @@ public class SecurityConfig {
                         .ignoringRequestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
-                                "/oauth2/**"
+                                "/oauth2/**", 
+                                "/api/oauth2/**",
+                                "/api/login/oauth2/**"
                         ));
         http.cors(cors -> {});
         http.authorizeHttpRequests(auth ->
@@ -40,7 +42,13 @@ public class SecurityConfig {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 }) 
         ); // when user is not authenticated but call auth route, spring security will send 401
-        http.oauth2Login(oauth2 -> oauth2.successHandler(successHandler));
+        http.oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(authorization -> authorization
+                        .baseUri("/api/oauth2/authorization"))
+                .redirectionEndpoint(redirection -> redirection
+                        .baseUri("/api/login/oauth2/code/*"))
+                .successHandler(successHandler)
+        );
         // add jwt filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         // add csrf cookie filter after BasicAuthenticationFilter

@@ -5,6 +5,7 @@ import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.repository.AccountRepository;
 import com.namphong.backend.repository.UserRepository;
 import com.namphong.backend.security.JwtService;
+import com.namphong.backend.service.RefreshTokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,6 +24,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.oauth2.redirect-uri}")
+    private String redirectUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -62,22 +70,22 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         // create JWT
         String token = jwtService.generateToken(user.getId());
 
-        // set cookie
+        // set access_token cookie
         Cookie cookie = new Cookie("access_token", token);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false);
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/");
         cookie.setMaxAge(15 * 60);
-
         response.addCookie(cookie);
 
-        String origin = request.getHeader("Origin");
-
-        String redirectUrl = "http://localhost:5173";
-
-        if (origin != null && origin.contains("nip.io")) {
-            redirectUrl = "https://13.214.163.45.nip.io";
-        }
+        // create and set refresh_token cookie
+        String refresh = refreshTokenService.createRefreshTokenFor(user, 30); // 30 days
+        Cookie refreshCookie = new Cookie("refresh_token", refresh);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(cookieSecure);
+        refreshCookie.setPath("/api/auth");
+        refreshCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(refreshCookie);
 
         response.sendRedirect(redirectUrl);
     }

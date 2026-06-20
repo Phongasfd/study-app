@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.UUID;
 
@@ -21,6 +22,9 @@ public class UserController {
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     public UserController(UserService userService, RefreshTokenService refreshTokenService, JwtService jwtService) {
         this.userService = userService;
@@ -37,7 +41,7 @@ public class UserController {
             String access = jwtService.generateToken(user.getId());
             Cookie accessCookie = new Cookie("access_token", access);
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(true);
+            accessCookie.setSecure(cookieSecure);
             accessCookie.setPath("/");
             accessCookie.setMaxAge(15 * 60);
             response.addCookie(accessCookie);
@@ -46,7 +50,7 @@ public class UserController {
             String refresh = refreshTokenService.createRefreshTokenFor(user, 30); // 30 days
             Cookie refreshCookie = new Cookie("refresh_token", refresh);
             refreshCookie.setHttpOnly(true);
-            refreshCookie.setSecure(true);
+            refreshCookie.setSecure(cookieSecure);
             refreshCookie.setPath("/api/auth");
             refreshCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(refreshCookie);
@@ -67,11 +71,15 @@ public class UserController {
         Cookie a = new Cookie("access_token", null);
         a.setMaxAge(0);
         a.setPath("/");
+        a.setHttpOnly(true);
+        a.setSecure(cookieSecure);
         response.addCookie(a);
 
         Cookie r = new Cookie("refresh_token", null);
         r.setMaxAge(0);
         r.setPath("/api/auth");
+        r.setHttpOnly(true);
+        r.setSecure(cookieSecure);
         response.addCookie(r);
 
         return ResponseEntity.ok("Logged out");
@@ -105,7 +113,7 @@ public class UserController {
             String newAccess = jwtService.generateToken(result.user.getId());
             Cookie accessCookie = new Cookie("access_token", newAccess);
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(true);
+            accessCookie.setSecure(cookieSecure);
             accessCookie.setPath("/");
             accessCookie.setMaxAge(15 * 60);
             response.addCookie(accessCookie);
@@ -113,7 +121,7 @@ public class UserController {
             // set new refresh token cookie (result contains refresh token string)
             Cookie refresh = new Cookie("refresh_token", result.refreshToken);
             refresh.setHttpOnly(true);
-            refresh.setSecure(true);
+            refresh.setSecure(cookieSecure);
             refresh.setPath("/api/auth");
             refresh.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(refresh);

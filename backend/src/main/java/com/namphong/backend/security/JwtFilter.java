@@ -40,16 +40,9 @@ public class JwtFilter extends OncePerRequestFilter {
                         // -Spring know this request logged in
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     } catch(Exception e) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json");
-                        response.setCharacterEncoding("UTF-8");
-                        response.getWriter().write("""
-                        {
-                          "status": 401,
-                          "message": "Invalid token"
-                        }
-                        """);
-                        return;
+                        // If token is invalid or expired, do not set the SecurityContext authentication.
+                        // Let the filter chain continue so public endpoints (e.g. refresh) can be reached.
+                        // Secured endpoints will be naturally blocked by Spring Security.
                     }
                     break;
                 }

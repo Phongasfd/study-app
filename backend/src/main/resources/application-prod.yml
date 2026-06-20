@@ -25,6 +25,7 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/{registrationId}"
             scope:
               - profile
               - email
@@ -35,3 +36,14 @@ jwt:
 ratelimiter:
   requests: ${RATE_LIMIT_REQUESTS:100}
   durationSeconds: ${RATE_LIMIT_DURATION:60}
+
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:https://13.214.163.45.nip.io}
+  cookie:
+    secure: ${COOKIE_SECURE:true}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://13.214.163.45.nip.io,https://13.214.163.45}
+
+server:
+  forward-headers-strategy: framework
