@@ -71,7 +71,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         response.addCookie(cookie);
 
-        response.sendRedirect("http://localhost:5173");
+        String origin = request.getHeader("Origin");
+
+        String redirectUrl = "http://localhost:5173";
+
+        if (origin != null && origin.contains("nip.io")) {
+            redirectUrl = "https://13.214.163.45.nip.io";
+        }
+
+        response.sendRedirect(redirectUrl);
     }
 
 }
