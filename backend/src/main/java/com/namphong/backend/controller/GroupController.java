@@ -5,10 +5,10 @@ import com.namphong.backend.dto.StudyGroupRequest;
 import com.namphong.backend.dto.StudyGroupResponse;
 import com.namphong.backend.entity.StudyGroup;
 import com.namphong.backend.entity.UserEntity;
-import com.namphong.backend.entity.SessionStatus;
-import com.namphong.backend.entity.StudySession;
+import com.namphong.backend.entity.GroupMember;
 import com.namphong.backend.repository.StudySessionRepository;
 import com.namphong.backend.service.GroupService;
+import com.namphong.backend.service.StudySessionService;
 import com.namphong.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -128,13 +128,20 @@ public class GroupController {
     public ResponseEntity<StudyGroupDetailResponse> getGroupDetails(@PathVariable UUID id) {
         StudyGroup group = groupService.getGroupById(id);
         
-        List<StudyGroupDetailResponse.MemberResponse> members = groupService.getGroupMembers(id)
+        // members (with users) in one query + all running sessions in one query, instead of one per member
+        List<GroupMember> groupMembers = groupService.getGroupMembers(id);
+        Map<UUID, LocalDateTime> runningSince = studySessionRepository.findLatestRunningStartTimes(
+                groupMembers.stream().map(m -> m.getUser().getId()).toList());
+        LocalDateTime now = LocalDateTime.now();
+
+        List<StudyGroupDetailResponse.MemberResponse> members = groupMembers
                 .stream()
                 .map(member -> {
-                    Optional<StudySession> activeSessionOpt = studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(member.getUser().getId(), SessionStatus.RUNNING);
-                    boolean isStudying = activeSessionOpt.isPresent();
-                    LocalDateTime activeSessionStartTime = activeSessionOpt.map(StudySession::getStartTime).orElse(null);
-                    
+                    LocalDateTime startTime = runningSince.get(member.getUser().getId());
+                    // same rule as the ranking board: a >12h timer is abandoned, not "studying"
+                    boolean isStudying = startTime != null && !StudySessionService.isAbandoned(startTime, now);
+                    LocalDateTime activeSessionStartTime = isStudying ? startTime : null;
+
                     return new StudyGroupDetailResponse.MemberResponse(
                             member.getUser().getId(),
                             member.getUser().getUsername(),

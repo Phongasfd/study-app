@@ -89,7 +89,7 @@ public class GroupService {
     }
 
     public List<GroupMember> getGroupMembers(UUID groupId) {
-        return groupMemberRepository.findAllByGroupId(groupId);
+        return groupMemberRepository.findAllWithUserByGroupId(groupId);
     }
 
     public List<StudyGroup> searchGroups(String name) {

@@ -29,6 +29,11 @@ public class StudySessionService {
     private final ChatWebSocketHandler chatWebSocketHandler;
     private final Clock clock;
 
+    /** A RUNNING session older than the cap is a forgotten timer, not someone studying. */
+    public static boolean isAbandoned(LocalDateTime startTime, LocalDateTime now) {
+        return Duration.between(startTime, now).compareTo(MAX_SESSION_DURATION) > 0;
+    }
+
     // Start/end times always come from the server clock: client-sent times
     // let anyone backdate a session and inflate their ranking.
     @Transactional

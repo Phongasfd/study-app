@@ -23,7 +23,9 @@ import org.springframework.security.access.AccessDeniedException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,65 +40,58 @@ public class GroupRankingService {
 
     @Transactional(readOnly = true)
     public List<GroupRankingResponse> findGroupRankingById(UUID groupId) {
-        List<GroupMember> members = groupMemberRepository.findAllByGroupId(groupId);
+        // 4 queries for the whole group, however many members it has. The old loop ran
+        // 3 queries per member (+1 for the EAGER user), and this runs on every timer start/stop broadcast.
+        List<GroupMember> members = groupMemberRepository.findAllWithUserByGroupId(groupId);
         List<GroupRankingResponse> groupRankingResponses = new ArrayList<>();
+        if (members.isEmpty()) {
+            return groupRankingResponses;
+        }
+        List<UUID> userIds = members.stream().map(m -> m.getUser().getId()).toList();
+
+        // Database total duration (completed study sessions) per user
+        Map<UUID, GroupRankingRepository.RankingTotal> rankings = new HashMap<>();
+        for (GroupRankingRepository.RankingTotal row : groupRankingRepository.findTotalsByGroupId(groupId)) {
+            rankings.put(row.getUserId(), row);
+        }
+
+        // Running session start time per user
+        Map<UUID, LocalDateTime> runningSince = studySessionRepository.findLatestRunningStartTimes(userIds);
+
+        // Today's completed duration per user (timer base)
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        Map<UUID, Long> todaySeconds = new HashMap<>();
+        for (StudySessionRepository.UserDuration row : studySessionRepository.sumDurationByUserIds(
+                userIds, SessionStatus.COMPLETED, startOfDay, now.plusDays(1))) {
+            todaySeconds.put(row.getUserId(), row.getTotalSeconds());
+        }
 
         for (GroupMember member : members) {
             UserEntity user = member.getUser();
 
-            // Get database total duration (completed study sessions)
-            Optional<GroupRanking> rankingOpt = groupRankingRepository.findByGroupIdAndUserId(groupId, user.getId());
-            int dbDuration = rankingOpt.map(GroupRanking::getTotalDuration).orElse(0);
-
-            // Get active session if any
-            Optional<StudySession> activeSessionOpt = studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(user.getId(), SessionStatus.RUNNING);
+            GroupRankingRepository.RankingTotal ranking = rankings.get(user.getId());
+            int dbDuration = ranking != null && ranking.getTotalDuration() != null ? ranking.getTotalDuration() : 0;
 
             int activeDuration = 0;
             boolean isStudying = false;
             LocalDateTime activeSessionStartTime = null;
 
-            if (activeSessionOpt.isPresent()) {
-
-                StudySession activeSession = activeSessionOpt.get();
-            
-                // Sessions running longer than the cap are treated as abandoned. They are not
-                // written here (this is a readOnly transaction, so the save was never flushed);
-                // StudySessionService closes them with the 12h cap on the next start/complete.
-                boolean abandoned = activeSession.getStartTime() != null &&
-                        Duration.between(
-                                activeSession.getStartTime(),
-                                LocalDateTime.now()
-                        ).compareTo(StudySessionService.MAX_SESSION_DURATION) > 0;
-
-                if (!abandoned) {
-            
-                    isStudying = true;
-            
-                    activeSessionStartTime =
-                            activeSession.getStartTime();
-            
-                    activeDuration =
-                            (int) Duration.between(
-                                    activeSessionStartTime,
-                                    LocalDateTime.now()
-                            ).getSeconds();
-                }
+            // Sessions running longer than the cap are treated as abandoned (not studying);
+            // StudySessionService closes them with the 12h cap on the next start/complete.
+            LocalDateTime startTime = runningSince.get(user.getId());
+            if (startTime != null && !StudySessionService.isAbandoned(startTime, now)) {
+                isStudying = true;
+                activeSessionStartTime = startTime;
+                activeDuration = (int) Duration.between(startTime, now).getSeconds();
             }
-            
-            int totalDuration = dbDuration + activeDuration;
 
-            // Calculate daily completed duration for the timer base
-            LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
-            List<StudySession> todaySessions = studySessionRepository.findByUserAndStartTimeBetween(user, startOfDay, LocalDateTime.now().plusDays(1));
-            int dailyDbDuration = todaySessions.stream()
-                .filter(s -> s.getStatus() == SessionStatus.COMPLETED)
-                .mapToInt(s -> s.getDurationSeconds() != null ? s.getDurationSeconds() : 0)
-                .sum();
+            int totalDuration = dbDuration + activeDuration;
+            int dailyDbDuration = todaySeconds.getOrDefault(user.getId(), 0L).intValue();
 
             groupRankingResponses.add(
                     GroupRankingResponse.builder()
-                            .id(rankingOpt.map(GroupRanking::getId).orElse(null))
-                            // method reference "::": rankingOpt.map(groupRanking -> groupRanking.getId()).orElse(null)
+                            .id(ranking != null ? ranking.getId() : null)
                             .groupId(groupId)
                             .userId(user.getId())
                             .username(user.getUsername())
