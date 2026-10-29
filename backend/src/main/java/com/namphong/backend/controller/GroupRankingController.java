@@ -3,6 +3,7 @@ package com.namphong.backend.controller;
 import com.namphong.backend.dto.GroupRankingRequest;
 import com.namphong.backend.dto.GroupRankingResponse;
 import com.namphong.backend.service.GroupRankingService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +23,9 @@ public class GroupRankingController {
     }
 
     @PostMapping
-    public ResponseEntity<GroupRankingResponse> createGroupRanking(@RequestBody GroupRankingRequest request) {
-        return ResponseEntity.ok(groupRankingService.createGroupRanking(request));
+    public ResponseEntity<GroupRankingResponse> createGroupRanking(@RequestBody GroupRankingRequest request,
+                                                                   HttpServletRequest httpRequest) {
+        UUID requesterId = UUID.fromString(httpRequest.getUserPrincipal().getName());
+        return ResponseEntity.ok(groupRankingService.createGroupRanking(request, requesterId));
     }
 }

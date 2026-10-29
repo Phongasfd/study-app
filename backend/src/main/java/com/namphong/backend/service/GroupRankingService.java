@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.namphong.backend.exception.NotFoundException;
 import com.namphong.backend.exception.BadRequestException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -58,27 +59,16 @@ public class GroupRankingService {
 
                 StudySession activeSession = activeSessionOpt.get();
             
-                // Auto-close sessions older than 12 hours
-                if (activeSession.getStartTime() != null &&
+                // Sessions running longer than the cap are treated as abandoned. They are not
+                // written here (this is a readOnly transaction, so the save was never flushed);
+                // StudySessionService closes them with the 12h cap on the next start/complete.
+                boolean abandoned = activeSession.getStartTime() != null &&
                         Duration.between(
                                 activeSession.getStartTime(),
                                 LocalDateTime.now()
-                        ).toHours() > 12) {
-            
-                    activeSession.setStatus(SessionStatus.COMPLETED);
-            
-                    activeSession.setEndTime(
-                            activeSession.getStartTime().plusHours(12));
-            
-                    activeSession.setDurationSeconds(
-                            (int) Duration.between(
-                                    activeSession.getStartTime(),
-                                    activeSession.getEndTime()
-                            ).getSeconds());
-            
-                    studySessionRepository.save(activeSession);
-            
-                } else {
+                        ).compareTo(StudySessionService.MAX_SESSION_DURATION) > 0;
+
+                if (!abandoned) {
             
                     isStudying = true;
             
@@ -135,7 +125,15 @@ public class GroupRankingService {
         return groupRankingResponses;
     }
 
-    public GroupRankingResponse createGroupRanking(GroupRankingRequest request) {
+    public GroupRankingResponse createGroupRanking(GroupRankingRequest request, UUID requesterId) {
+        // Users may only open their own ranking entry, and only in a group they belong to
+        if (!requesterId.equals(request.getUserId())) {
+            throw new AccessDeniedException("You can only create your own ranking entry");
+        }
+        if (groupMemberRepository.findByGroupIdAndUserId(request.getGroupId(), requesterId).isEmpty()) {
+            throw new AccessDeniedException("You are not a member of this group");
+        }
+
         StudyGroup group = groupRepository.findById(request.getGroupId())
             .orElseThrow(() -> new NotFoundException("Group not found"));
         UserEntity user = userRepository.findById(request.getUserId())

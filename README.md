@@ -4,7 +4,7 @@ A full-stack study and focus application with real-time chat, group management, 
 
 ## Tech Stack
 
-- **Backend:** Java Spring Boot, WebSocket, Spring Security, JPA, PostgreSQL, MongoDB, JWT, Bucket4j rate limiting. Java version: 25.
+- **Backend:** Java Spring Boot, WebSocket, Spring Security, JPA, PostgreSQL, MongoDB, JWT, Bucket4j rate limiting. Java version: 21.
 - **Frontend:** React + Vite — React 19, react-router, axios.
 - **Dev infra:** Docker Compose for local DBs.
 

@@ -10,6 +10,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.Clock;
+
 @Configuration
 @EnableConfigurationProperties(RateLimiterProperties.class) // Enable binding of RateLimiterProperties to application.yml 
 // tạo bean RateLimiterProperties và bind dữ liệu từ file properties vào
@@ -26,6 +28,12 @@ public class AppConfig {
         mapper.findAndRegisterModules();
         return mapper;
     } // tu tao bean objectmapper de fix loi spring k tim dc bean
+
+    // Server clock for study-session times; injectable so tests can fix "now"
+    @Bean
+    public Clock clock() {
+        return Clock.systemDefaultZone();
+    }
 
     // @Bean
     // public MongoClient mongoClient() {

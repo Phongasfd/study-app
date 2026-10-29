@@ -34,8 +34,20 @@ public class SecurityConfig {
                                 "/api/login/oauth2/**"
                         ));
         http.cors(cors -> {});
-        http.authorizeHttpRequests(auth ->
-                auth.requestMatchers("/api/auth/me", "/api/subject/**").authenticated().anyRequest().permitAll());
+        // Deny by default: only the login/refresh flow is public. Everything else,
+        // including the /ws handshake, needs a valid access_token cookie.
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/refresh", // access token may already be expired here
+                        "/api/auth/logout",
+                        "/oauth2/**",
+                        "/api/oauth2/**",
+                        "/api/login/oauth2/**",
+                        "/error"
+                ).permitAll()
+                .anyRequest().authenticated());
 
         http.exceptionHandling(e -> e
                 .authenticationEntryPoint((request, response, authException) -> {

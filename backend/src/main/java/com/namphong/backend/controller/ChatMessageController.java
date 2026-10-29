@@ -3,7 +3,9 @@ package com.namphong.backend.controller;
 import com.namphong.backend.dto.ChatMessageRequest;
 import com.namphong.backend.dto.ChatMessageResponse;
 import com.namphong.backend.entity.UserEntity;
+import com.namphong.backend.exception.BadRequestException;
 import com.namphong.backend.service.ChatMessageService;
+import com.namphong.backend.service.GroupMemberService;
 import com.namphong.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class ChatMessageController {
 
     private final ChatMessageService chatMessageService;
     private final UserService userService;
+    private final GroupMemberService groupMemberService;
 
     @PostMapping
     public ResponseEntity<ChatMessageResponse> createMessage(@RequestBody ChatMessageRequest request,
@@ -28,6 +31,7 @@ public class ChatMessageController {
             return ResponseEntity.status(401).build();
         }
         UUID userId = UUID.fromString(httpRequest.getUserPrincipal().getName());
+        groupMemberService.requireMember(parseGroupId(request.getGroupId()), userId);
         UserEntity currentUser = userService.getUserEntityById(userId);
 
         ChatMessageResponse response = chatMessageService.createMessage(request, currentUser);
@@ -35,8 +39,20 @@ public class ChatMessageController {
     }
 
     @GetMapping("/{groupId}")
-    public ResponseEntity<List<ChatMessageResponse>> getMessagesByGroupId(@PathVariable String groupId) {
+    public ResponseEntity<List<ChatMessageResponse>> getMessagesByGroupId(@PathVariable String groupId,
+                                                                          HttpServletRequest httpRequest) {
+        // only members can read a group chat history
+        UUID userId = UUID.fromString(httpRequest.getUserPrincipal().getName());
+        groupMemberService.requireMember(parseGroupId(groupId), userId);
         List<ChatMessageResponse> messages = chatMessageService.getMessagesByGroupId(groupId);
         return ResponseEntity.ok(messages);
+    }
+
+    private UUID parseGroupId(String groupId) {
+        try {
+            return UUID.fromString(groupId);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BadRequestException("Invalid groupId");
+        }
     }
 }
