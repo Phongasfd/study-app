@@ -115,7 +115,7 @@ const GroupInfo = () => {
     } catch (e) {
       host = apiBaseUrl.replace(/^(https?:\/\/)?/, '').split('/')[0];
     }
-    const wsUrl = `${wsProtocol}//${host}/ws?groupId=${id}&userId=${currentUser.id}`;
+    const wsUrl = `${wsProtocol}//${host}/ws?groupId=${id}`;
     const websocket = new WebSocket(wsUrl);
     setWs(websocket);
 

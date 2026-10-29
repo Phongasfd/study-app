@@ -21,6 +21,17 @@ public class GroupMemberService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupRepository groupRepository;
 
+    public boolean isMember(UUID groupId, UUID userId) {
+        return groupMemberRepository.findByGroupIdAndUserId(groupId, userId).isPresent();
+    }
+
+    // Chat, ranking entries, ... are only for people inside the group
+    public void requireMember(UUID groupId, UUID userId) {
+        if (!isMember(groupId, userId)) {
+            throw new AccessDeniedException("You are not a member of this group");
+        }
+    }
+
     @Transactional
     public GroupMember addMember(StudyGroup group, UserEntity user) {
         // Check if already a member
