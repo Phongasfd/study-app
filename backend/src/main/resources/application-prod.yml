@@ -10,7 +10,9 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # Flyway owns the schema (db/migration). validate fails fast at startup if an
+      # entity and the migrations disagree, instead of silently altering prod tables.
+      ddl-auto: validate
     show-sql: false 
     properties:
       hibernate:
