@@ -29,15 +29,9 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-      mongodb:
-        image: mongo:8.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+      # No mongodb service: no test touches Mongo, and mongo:8.0 refuses to start on the
+      # runners' Linux 6.19+ kernel (SERVER-121912), which failed every CI run.
+      # Re-add it with a fixed image tag if an integration test ever needs Mongo.
 
     steps:
       - name: Checkout code
