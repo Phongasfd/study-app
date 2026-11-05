@@ -6,7 +6,6 @@ const BottomNavBar = () => {
   const { t } = useTranslation();
   const navItems = [
     { path: '/', icon: 'timer', label: t('nav.home') },
-    // { path: '/assistant', icon: 'graphic_eq', label: 'AI Voice' },
     { path: '/groups', icon: 'group', label: t('nav.groups') },
     { path: '/stats', icon: 'bar_chart', label: t('nav.stats') },
   ];

@@ -4,6 +4,7 @@ import com.namphong.backend.entity.SessionStatus;
 import com.namphong.backend.entity.StudySession;
 import com.namphong.backend.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.Collection;
@@ -23,6 +24,33 @@ public interface StudySessionRepository extends JpaRepository<StudySession, UUID
 
     // find if the user has the lasted active study session
     Optional<StudySession> findFirstByUserIdAndStatusOrderByStartTimeDesc(UUID userId, SessionStatus status);
+
+    /** Name of the partial unique index from V3: at most one RUNNING session per user. */
+    String ONE_RUNNING_SESSION_INDEX = "uq_study_sessions_one_running_per_user";
+
+    /**
+     * Completes the session only if it is still RUNNING, as one atomic statement.
+     * Returns 1 for the request that won, 0 for every concurrent or repeated request.
+     *
+     * A read-then-write ("load, check status, save") lets two requests both see RUNNING
+     * and both credit the time. Here PostgreSQL row-locks the row: the second UPDATE waits,
+     * re-checks the WHERE on the committed row, and matches nothing.
+     *
+     * clearAutomatically: the bulk update bypasses the persistence context, so drop
+     * the now-stale RUNNING copy instead of letting Hibernate flush it back later.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update StudySession s set s.status = :completed, s.endTime = :endTime, s.durationSeconds = :duration " +
+           "where s.id = :id and s.status = :running")
+    int completeIfRunning(@Param("id") UUID id,
+                          @Param("endTime") LocalDateTime endTime,
+                          @Param("duration") int duration,
+                          @Param("running") SessionStatus running,
+                          @Param("completed") SessionStatus completed);
+
+    default int completeIfRunning(UUID id, LocalDateTime endTime, int duration) {
+        return completeIfRunning(id, endTime, duration, SessionStatus.RUNNING, SessionStatus.COMPLETED);
+    }
 
     // ---- batched lookups for a whole group (avoid one query per member) ----
 

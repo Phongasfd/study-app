@@ -3,12 +3,10 @@ package com.namphong.backend.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.namphong.backend.dto.ChatMessageRequest;
 import com.namphong.backend.dto.ChatMessageResponse;
-import com.namphong.backend.dto.GroupRankingResponse;
 import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.repository.UserRepository;
 import com.namphong.backend.service.ChatMessageService;
 import com.namphong.backend.service.GroupMemberService;
-import com.namphong.backend.service.GroupRankingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,11 +15,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.io.IOException;
 import java.net.URI;
 import java.security.Principal;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -29,13 +25,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatWebSocketHandler extends TextWebSocketHandler { // class handling websocket text
 
     private final ChatMessageService chatMessageService; // save message to db
-    private final GroupRankingService groupRankingService; // to send realtime ranking board
     private final GroupMemberService groupMemberService; // only members may join a group's socket
     private final UserRepository userRepository; // for find user
     private final ObjectMapper objectMapper; // to convert json to java object
+    private final GroupSessionRegistry sessionRegistry; // groupId -> sessions open on THIS node
+    private final GroupEventBus groupEventBus; // reaches the group's sockets on every node (local or Redis)
 
-    // groupId -> active sessions
-    private static final ConcurrentHashMap<UUID, Set<WebSocketSession>> groupSessions = new ConcurrentHashMap<>();
+    // groupId -> active sessions now lives in GroupSessionRegistry (one per node).
+    // With 2+ backend instances, members of one group are spread over different JVMs,
+    // so a broadcast goes through GroupEventBus (Redis Pub/Sub) instead of this map alone.
     // // handle online users
     // It stores in RAM:
     // {
@@ -105,7 +103,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler { // class handli
         }
 
         // if groupId not exists -> Tạo mới: GroupA → [] rồi: GroupA → [Session]
-        groupSessions.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet()).add(session);
+        sessionRegistry.add(groupId, session);
 
         // store groupId + authenticated userId in session
         session.getAttributes().put("groupId", groupId);
@@ -167,11 +165,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler { // class handli
             // save message to db
             ChatMessageResponse response = chatMessageService.createMessage(request, sender);
 
-            // Broadcast message to group
-            broadcastToGroup(groupId, Map.of(
-                "type", "chat",
-                "data", response
-            ));
+            // Broadcast message to group, on every backend instance
+            groupEventBus.publish(groupId, "chat", response);
             // {
             //     "type": "chat", // distinguish the type of message
             //     "data": {
@@ -189,72 +184,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler { // class handli
         // get group id from session
         UUID groupId = (UUID) session.getAttributes().get("groupId");
 
-        // if group id is not null
+        // if group id is not null -> remove session from group (and the group once it is empty)
         if (groupId != null) {
-            // get sessions from group id
-            Set<WebSocketSession> sessions = groupSessions.get(groupId);
-            // if sessions is not null
-            if (sessions != null) {
-                // remove session from group
-                sessions.remove(session);
-
-                // if sessions is empty -> remove group id
-                if (sessions.isEmpty()) {
-                    groupSessions.remove(groupId);
-                }
-            }
+            sessionRegistry.remove(groupId, session);
         }
         log.info("WebSocket connection closed for session: {}", session.getId());
-    }
-
-    // Broadcast ranking to group
-    public void broadcastRanking(UUID groupId) {
-        try {
-            // find group ranking by group id
-            List<GroupRankingResponse> rankings = groupRankingService.findGroupRankingById(groupId);
-
-            // broadcast ranking to group
-            broadcastToGroup(groupId, Map.of(
-                "type", "ranking",
-                "data", rankings
-            ));
-        } catch (Exception e) {
-            log.error("Failed to broadcast ranking for group {}: {}", groupId, e.getMessage());
-        }
-    }
-
-    // broadcast message to group
-    private void broadcastToGroup(UUID groupId, Object messageObj) {
-        // get sessions from group id
-        Set<WebSocketSession> sessions = groupSessions.get(groupId);
-        // if sessions is null or empty -> return
-        if (sessions == null || sessions.isEmpty()) {
-            return;
-        }
-
-        try {
-            // convert message to json
-            String jsonPayload = objectMapper.writeValueAsString(messageObj);
-            // create text message
-            TextMessage textMessage = new TextMessage(jsonPayload);
-            // send message to all sessions
-            for (WebSocketSession session : sessions) {
-                // if session is open
-                if (session.isOpen()) {
-                    try {
-                        // sendMessage is not thread-safe per session; chat and ranking
-                        // broadcasts can hit the same session from different threads
-                        synchronized (session) {
-                            session.sendMessage(textMessage);
-                        }
-                    } catch (IOException e) {
-                        log.warn("Failed to send message to session {}: {}", session.getId(), e.getMessage());
-                    }
-                }
-            }
-        } catch (IOException e) {
-            log.error("Failed to serialize WebSocket broadcast message: {}", e.getMessage());
-        }
     }
 
     // userId comes only from the authenticated principal (JwtFilter sets it to the userId UUID)

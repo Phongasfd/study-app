@@ -163,6 +163,20 @@
             <version>2.1.0</version>
             <scope>test</scope>
         </dependency>
+        <!-- Real redis-server binary (Linux/macOS/Windows) for the multi-instance tests, no Docker needed -->
+        <dependency>
+            <groupId>com.github.codemonstur</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>1.4.4</version>
+            <scope>test</scope>
+            <exclusions>
+                <!-- the app talks to Redis through Lettuce; keep a second client off the classpath -->
+                <exclusion>
+                    <groupId>redis.clients</groupId>
+                    <artifactId>jedis</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!--  Source: https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-api  -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

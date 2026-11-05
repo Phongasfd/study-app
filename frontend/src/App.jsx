@@ -7,7 +7,6 @@ import Groups from './pages/Groups';
 import GroupInfo from './pages/GroupInfo';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import AIAssistant from './pages/AIAssistant';
 import { AuthProvider } from './context/AuthContext';
 import { TimerProvider } from './context/TimerContext';
 import './App.css';
@@ -23,7 +22,6 @@ const AppContent = () => {
       <main className="main-content container">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/assistant" element={<AIAssistant />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupInfo />} />

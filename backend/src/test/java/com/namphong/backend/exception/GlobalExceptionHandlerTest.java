@@ -1,7 +1,7 @@
 package com.namphong.backend.exception;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.namphong.backend.config.RateLimiterProperties;
+import com.namphong.backend.config.RateLimiter;
 import com.namphong.backend.controller.UserController;
 import com.namphong.backend.dto.UserRequestDTO;
 import com.namphong.backend.service.RefreshTokenService;
@@ -38,7 +38,7 @@ class GlobalExceptionHandlerTest {
     private UserService userService;
 
     @MockitoBean
-    private RateLimiterProperties rateLimiterProperties;
+    private RateLimiter rateLimiter; // RateLimitingFilter's dependency (filters are off in this test)
 
     @MockitoBean
     private RefreshTokenService refreshTokenService;

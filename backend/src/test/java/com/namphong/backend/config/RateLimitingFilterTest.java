@@ -17,7 +17,7 @@ class RateLimitingFilterTest {
         RateLimiterProperties properties = new RateLimiterProperties();
         properties.setRequests(2);
         properties.setDurationSeconds(60);
-        filter = new RateLimitingFilter(properties);
+        filter = new RateLimitingFilter(new InMemoryRateLimiter(properties));
     }
 
     private int send(String remoteAddr, String forwardedFor) throws Exception {
