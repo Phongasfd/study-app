@@ -5,11 +5,12 @@ import com.namphong.backend.exception.NotFoundException;
 import com.namphong.backend.repository.GroupMemberRepository;
 import com.namphong.backend.repository.GroupRankingRepository;
 import com.namphong.backend.repository.StudySessionRepository;
-import com.namphong.backend.websocket.ChatWebSocketHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -21,8 +22,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+/** Business rules with mocked repositories. The real concurrency behaviour is in StudySessionConcurrencyTest. */
 class StudySessionServiceTest {
 
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 29, 10, 0);
@@ -30,6 +34,7 @@ class StudySessionServiceTest {
     private StudySessionRepository studySessionRepository;
     private GroupMemberRepository groupMemberRepository;
     private GroupRankingRepository groupRankingRepository;
+    private ApplicationEventPublisher events;
     private StudySessionService service;
 
     private UserEntity owner;
@@ -40,9 +45,10 @@ class StudySessionServiceTest {
         studySessionRepository = mock(StudySessionRepository.class);
         groupMemberRepository = mock(GroupMemberRepository.class);
         groupRankingRepository = mock(GroupRankingRepository.class);
+        events = mock(ApplicationEventPublisher.class);
         Clock clock = Clock.fixed(Instant.parse("2026-10-29T10:00:00Z"), ZoneOffset.UTC);
         service = new StudySessionService(studySessionRepository, groupMemberRepository,
-                groupRankingRepository, mock(ChatWebSocketHandler.class), clock);
+                groupRankingRepository, events, clock, TransactionOperations.withoutTransaction());
 
         owner = UserEntity.builder().id(UUID.randomUUID()).username("owner").build();
         group = new StudyGroup();
@@ -51,8 +57,9 @@ class StudySessionServiceTest {
         membership.setGroup(group);
         membership.setUser(owner);
         when(groupMemberRepository.findAllByUserId(owner.getId())).thenReturn(List.of(membership));
-        when(groupRankingRepository.findByGroupIdAndUserId(any(), any())).thenReturn(Optional.empty());
-        when(studySessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(studySessionRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+        // the default method delegates to the 5-arg query; with a mock, stub the 3-arg one directly
+        when(studySessionRepository.completeIfRunning(any(UUID.class), any(LocalDateTime.class), anyInt())).thenReturn(1);
     }
 
     private StudySession runningSession(LocalDateTime startTime) {
@@ -66,10 +73,8 @@ class StudySessionServiceTest {
         return session;
     }
 
-    private int creditedSeconds() {
-        ArgumentCaptor<GroupRanking> captor = ArgumentCaptor.forClass(GroupRanking.class);
-        verify(groupRankingRepository).save(captor.capture());
-        return captor.getValue().getTotalDuration();
+    private void verifyCredited(int seconds) {
+        verify(groupRankingRepository).addDuration(group.getId(), owner.getId(), seconds);
     }
 
     @Test
@@ -81,6 +86,7 @@ class StudySessionServiceTest {
 
         assertEquals(NOW, session.getStartTime());
         assertEquals(SessionStatus.RUNNING, session.getStatus());
+        verify(events).publishEvent(new StudySessionChangedEvent(owner.getId()));
     }
 
     @Test
@@ -92,7 +98,30 @@ class StudySessionServiceTest {
         service.createStudySession(owner);
 
         assertEquals(SessionStatus.COMPLETED, old.getStatus());
-        assertEquals(30 * 60, creditedSeconds());
+        verify(studySessionRepository).completeIfRunning(old.getId(), NOW, 30 * 60);
+        verifyCredited(30 * 60);
+    }
+
+    @Test
+    void create_whenAConcurrentStartWon_returnsThatSession() {
+        StudySession winner = StudySession.builder().id(UUID.randomUUID()).user(owner)
+                .startTime(NOW).status(SessionStatus.RUNNING).build();
+        when(studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(owner.getId(), SessionStatus.RUNNING))
+                .thenReturn(Optional.empty())       // our transaction: nothing running yet
+                .thenReturn(Optional.of(winner));  // fallback read: the other request's session
+        when(studySessionRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException(
+                "duplicate key value violates unique constraint \"" + StudySessionRepository.ONE_RUNNING_SESSION_INDEX + "\""));
+
+        assertSame(winner, service.createStudySession(owner));
+    }
+
+    @Test
+    void create_otherIntegrityErrorsAreNotSwallowed() {
+        when(studySessionRepository.findFirstByUserIdAndStatusOrderByStartTimeDesc(owner.getId(), SessionStatus.RUNNING))
+                .thenReturn(Optional.empty());
+        when(studySessionRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("fk violation"));
+
+        assertThrows(DataIntegrityViolationException.class, () -> service.createStudySession(owner));
     }
 
     @Test
@@ -104,7 +133,8 @@ class StudySessionServiceTest {
         assertEquals(SessionStatus.COMPLETED, completed.getStatus());
         assertEquals(NOW, completed.getEndTime());
         assertEquals(25 * 60, completed.getDurationSeconds());
-        assertEquals(25 * 60, creditedSeconds());
+        verifyCredited(25 * 60);
+        verify(events).publishEvent(new StudySessionChangedEvent(owner.getId()));
     }
 
     @Test
@@ -114,7 +144,8 @@ class StudySessionServiceTest {
         assertThrows(AccessDeniedException.class,
                 () -> service.completeStudySession(session.getId(), UUID.randomUUID()));
         assertEquals(SessionStatus.RUNNING, session.getStatus());
-        verify(groupRankingRepository, never()).save(any());
+        verify(studySessionRepository, never()).completeIfRunning(any(UUID.class), any(LocalDateTime.class), anyInt());
+        verify(groupRankingRepository, never()).addDuration(any(), any(), anyInt());
     }
 
     @Test
@@ -125,7 +156,19 @@ class StudySessionServiceTest {
 
         service.completeStudySession(session.getId(), owner.getId());
 
-        verify(groupRankingRepository, never()).save(any());
+        verify(groupRankingRepository, never()).addDuration(any(), any(), anyInt());
+    }
+
+    @Test
+    void complete_lostRace_creditsNothing() {
+        // both requests read RUNNING; the other one's UPDATE matched first
+        StudySession session = runningSession(NOW.minusMinutes(25));
+        when(studySessionRepository.completeIfRunning(eq(session.getId()), any(LocalDateTime.class), anyInt())).thenReturn(0);
+
+        service.completeStudySession(session.getId(), owner.getId());
+
+        verify(groupRankingRepository, never()).addDuration(any(), any(), anyInt());
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     @Test

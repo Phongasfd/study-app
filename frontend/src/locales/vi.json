@@ -107,12 +107,5 @@
   "stats.avgPerWeek": "Trung bình mỗi tuần",
   "stats.bestWeek": "Tuần tốt nhất",
   "stats.goalAchieved": "🎉 Hoàn thành mục tiêu! Làm tốt lắm.",
-  "stats.keepItUp": "Cố lên! Còn {{hours}}h nữa.",
-
-  "ai.title": "Trợ lý học tập AI",
-  "ai.readyMessage": "Tôi sẵn sàng. Hãy ôn lại Giải tích nâng cao.",
-  "ai.exampleQuestion": "Bạn có thể giải thích lại quy tắc chuỗi không?",
-  "ai.controls.settings": "Cài đặt",
-  "ai.controls.mic": "Bật/tắt micro",
-  "ai.controls.endCall": "Kết thúc phiên"
+  "stats.keepItUp": "Cố lên! Còn {{hours}}h nữa."
 }

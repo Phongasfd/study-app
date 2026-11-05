@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -66,9 +68,10 @@ class SchemaMigrationTest {
 
         MigrateResult result = flyway(dataSource).migrate();
 
-        assertEquals(2, result.migrationsExecuted, "V1 baseline schema + V2 index");
+        assertEquals(3, result.migrationsExecuted, "V1 baseline schema + V2 index + V3 one running session");
         assertDoesNotThrow(() -> runHibernate(dataSource, "validate"));
         assertTrue(indexExists(dataSource, "idx_study_sessions_user_status_start"));
+        assertTrue(indexExists(dataSource, "uq_study_sessions_one_running_per_user"));
     }
 
     @Test
@@ -79,9 +82,41 @@ class SchemaMigrationTest {
 
         MigrateResult result = flyway(dataSource).migrate();
 
-        assertEquals(1, result.migrationsExecuted, "V1 must be skipped (baselined), only V2 runs");
-        assertEquals("2", result.targetSchemaVersion);
+        assertEquals(2, result.migrationsExecuted, "V1 must be skipped (baselined), only V2 and V3 run");
+        assertEquals("3", result.targetSchemaVersion);
         assertDoesNotThrow(() -> runHibernate(dataSource, "validate"));
         assertTrue(indexExists(dataSource, "idx_study_sessions_user_status_start"));
+        assertTrue(indexExists(dataSource, "uq_study_sessions_one_running_per_user"));
+    }
+
+    @Test
+    void duplicateRunningSessionsAreClosedSoTheUniqueIndexCanBeBuilt() throws Exception {
+        // Prod may already hold duplicates from the old race; the migration must not fail on them
+        DataSource dataSource = EmbeddedPostgresSupport.dataSource(EmbeddedPostgresSupport.freshDatabaseUrl("dupes"));
+        Flyway.configure().dataSource(dataSource).target("2").load().migrate(); // the schema before V3
+        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
+            s.execute("insert into users (id, email, username) values ('00000000-0000-0000-0000-000000000001', 'a@x.io', 'a')");
+            s.execute("insert into study_sessions (id, user_id, status, start_time) values " +
+                    "('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000001', 'RUNNING', '2026-11-01 09:00')," +
+                    "('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000001', 'RUNNING', '2026-11-01 09:00:01')");
+        }
+
+        flyway(dataSource).migrate();
+
+        try (Connection c = dataSource.getConnection();
+             ResultSet rs = c.createStatement().executeQuery(
+                     "select id, status, duration_seconds from study_sessions order by start_time")) {
+            assertTrue(rs.next());
+            assertEquals("COMPLETED", rs.getString("status"), "older duplicate is closed");
+            assertEquals(0, rs.getInt("duration_seconds"), "and credits nothing (it overlaps the kept one)");
+            assertTrue(rs.next());
+            assertEquals("RUNNING", rs.getString("status"), "latest session keeps running");
+        }
+        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
+            assertThrows(SQLException.class, () -> s.execute(
+                    "insert into study_sessions (id, user_id, status, start_time) values " +
+                    "(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'RUNNING', now())"),
+                    "a second RUNNING session is rejected by the database");
+        }
     }
 }

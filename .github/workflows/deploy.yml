@@ -58,6 +58,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # The server runs the compose file and nginx.conf from ~/study-app: ship the current ones
+      - name: Copy compose and nginx config
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.prod.yml,nginx.conf"
+          target: "~/study-app"
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -67,13 +77,23 @@ jobs:
           script: |
             set -e
 
-            cd ~/study-app 
+            cd ~/study-app
 
-            docker compose -f docker-compose.prod.yml pull
+            COMPOSE="docker compose -f docker-compose.prod.yml"
 
-            docker compose -f docker-compose.prod.yml up -d
+            $COMPOSE pull
 
-            sleep 20
+            # infrastructure + frontend first; --no-deps so nginx doesn't restart both backends at once
+            $COMPOSE up -d --remove-orphans --no-deps postgres mongodb redis frontend nginx
+            $COMPOSE exec -T nginx nginx -s reload # pick up a changed nginx.conf
+
+            # Rolling restart: one backend at a time, the other keeps serving (nginx skips the one
+            # that is down). Flyway runs on the first one; migrations must stay compatible with
+            # the previous release, which is still serving on the other instance meanwhile.
+            for svc in backend-1 backend-2; do
+              $COMPOSE up -d --no-deps "$svc"
+              sleep 30 # no health endpoint yet: give Spring Boot time to start before the next one
+            done
 
             docker ps
 

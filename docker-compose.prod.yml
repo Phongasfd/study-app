@@ -19,7 +19,17 @@ services:
    volumes:
      - mongodb_data:/data/db
 
-  backend:
+  # Pub/Sub for WebSocket fan-out + shared rate-limit counters. Both are ephemeral,
+  # so no persistence; not published on the host, only the backends reach it.
+  redis:
+    image: redis:7.4-alpine
+    restart: always
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  # Two identical, stateless instances behind nginx (upstream in nginx.conf).
+  # No host ports: nginx reaches them on the compose network, and a direct hit
+  # would bypass nginx's X-Forwarded-For overwrite.
+  backend-1: &backend
     image: namphong134/study-app-backend:latest
     restart: always
     environment:
@@ -34,15 +44,18 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_DURATION: 60
-
-    ports:
-      - "127.0.0.1:8080:8080" # only nginx is public; a direct hit would bypass the X-Forwarded-For overwrite
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+    depends_on:
+      - redis
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
-  
+
+  backend-2: *backend
+
   frontend:
     image: namphong134/study-app-frontend:latest
     restart: always
@@ -50,7 +63,7 @@ services:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL}
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.28-alpine # >= 1.27.3 for "server ... resolve" in nginx.conf
     container_name: gym_nginx
     restart: always
     ports:
@@ -61,7 +74,8 @@ services:
       - /etc/ssl/certs/study.crt:/etc/ssl/certs/study.crt:ro # Mount the SSL certificate
       - /etc/ssl/private/study.key:/etc/ssl/private/study.key:ro
     depends_on: # Ensure nginx starts after the backend and frontend services
-      - backend
+      - backend-1
+      - backend-2
       - frontend
 
 # Optional: if you want the compose file to also start DBs (not recommended for real production),

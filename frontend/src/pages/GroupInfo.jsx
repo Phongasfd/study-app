@@ -116,27 +116,56 @@ const GroupInfo = () => {
       host = apiBaseUrl.replace(/^(https?:\/\/)?/, '').split('/')[0];
     }
     const wsUrl = `${wsProtocol}//${host}/ws?groupId=${id}`;
-    const websocket = new WebSocket(wsUrl);
-    setWs(websocket);
 
-    websocket.onmessage = (event) => {
-      try {
-        const messageData = JSON.parse(event.data);
-        if (messageData.type === 'chat') {
-          setChatMessages((prev) => [...prev, messageData.data]);
-        } else if (messageData.type === 'ranking') {
-          setRanking(messageData.data);
+    // The backend runs as several instances; when the one holding this socket restarts
+    // (deploy, crash), reconnect and nginx routes the new socket to a healthy instance.
+    let websocket;
+    let attempt = 0;
+    let retryTimer;
+    let closedByUs = false;
+
+    const connect = () => {
+      websocket = new WebSocket(wsUrl);
+      setWs(websocket);
+
+      websocket.onopen = () => {
+        if (attempt > 0) {
+          // events sent while we were disconnected are not replayed: reload them
+          fetchMessages();
+          fetchRanking();
         }
-      } catch (error) {
-        console.error('Failed to parse websocket message:', error);
-      }
+        attempt = 0;
+      };
+
+      websocket.onmessage = (event) => {
+        try {
+          const messageData = JSON.parse(event.data);
+          if (messageData.type === 'chat') {
+            setChatMessages((prev) => [...prev, messageData.data]);
+          } else if (messageData.type === 'ranking') {
+            setRanking(messageData.data);
+          }
+        } catch (error) {
+          console.error('Failed to parse websocket message:', error);
+        }
+      };
+
+      websocket.onclose = (event) => {
+        // 1007 bad groupId, 1008 not a member: retrying cannot help
+        if (closedByUs || event.code === 1007 || event.code === 1008) return;
+        // exponential backoff (1s, 2s, 4s ... 30s) with jitter, so clients don't reconnect in lockstep
+        const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.random() * 500;
+        attempt += 1;
+        console.log(`WebSocket closed (${event.code}), reconnecting in ${Math.round(delay)} ms`);
+        retryTimer = setTimeout(connect, delay);
+      };
     };
 
-    websocket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
+    connect();
 
     return () => {
+      closedByUs = true;
+      clearTimeout(retryTimer);
       websocket.close();
     };
   }, [id, currentUser]);

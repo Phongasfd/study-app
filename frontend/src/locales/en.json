@@ -107,12 +107,5 @@
   "stats.avgPerWeek": "Avg Per Week",
   "stats.bestWeek": "Best Week",
   "stats.goalAchieved": "🎉 Goal achieved! Amazing work.",
-  "stats.keepItUp": "Keep it up! {{hours}}h to go.",
-
-  "ai.title": "AI Study Companion",
-  "ai.readyMessage": "I'm ready. Let's review Advanced Calculus.",
-  "ai.exampleQuestion": "Can you explain the chain rule again?",
-  "ai.controls.settings": "Settings",
-  "ai.controls.mic": "Toggle microphone",
-  "ai.controls.endCall": "End session"
+  "stats.keepItUp": "Keep it up! {{hours}}h to go."
 }

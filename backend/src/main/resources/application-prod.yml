@@ -2,6 +2,10 @@ spring:
   data:
     mongodb:
       uri: ${MONGO_URI}
+    # Only used when app.redis.enabled=true (several backend instances)
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   datasource:
     url: ${SPRING_DATASOURCE_URL}
@@ -40,6 +44,10 @@ ratelimiter:
   durationSeconds: ${RATE_LIMIT_DURATION:60}
 
 app:
+  # true: WebSocket fan-out and rate limiting go through Redis, so any number of
+  # instances can run behind nginx (see config/ScalingConfig). false: single instance.
+  redis:
+    enabled: ${REDIS_ENABLED:false}
   oauth2:
     redirect-uri: ${OAUTH2_REDIRECT_URI:https://13.214.163.45.nip.io}
   cookie:
