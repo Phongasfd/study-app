@@ -3,12 +3,15 @@ package com.namphong.backend.websocket;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
+import org.springframework.web.socket.handler.SessionLimitExceededException;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,7 +27,7 @@ public class GroupSessionRegistry {
 
     // A client that stops reading (bad network, frozen tab) must not block the thread that
     // delivers to everyone else: after 5 s of blocked sending or 512 KB of queued messages
-    // the decorator closes that session, and the frontend reconnects.
+    // the decorator gives up on that session, deliverLocally closes it, and the frontend reconnects.
     static final int SEND_TIME_LIMIT_MS = 5_000;
     static final int BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
@@ -72,11 +75,26 @@ public class GroupSessionRegistry {
             try {
                 session.sendMessage(textMessage);
                 delivered++;
+            } catch (SessionLimitExceededException e) {
+                // The decorator only flags the session and throws; it never closes it. Left open,
+                // the socket stayed registered but silently received nothing more, and the client
+                // never reconnected. Drop it now and close it off this thread: the close can wait
+                // behind the write that is stuck.
+                log.warn("Closing slow session {}: {}", session.getId(), e.getMessage());
+                remove(groupId, session);
+                CompletableFuture.runAsync(() -> closeQuietly(session, e.getStatus()));
             } catch (IOException | RuntimeException e) {
-                // RuntimeException: SessionLimitExceededException, the slow session was closed
                 log.warn("Failed to send message to session {}: {}", session.getId(), e.getMessage());
             }
         }
         return delivered;
+    }
+
+    private static void closeQuietly(WebSocketSession session, CloseStatus status) {
+        try {
+            session.close(status);
+        } catch (IOException | RuntimeException e) {
+            log.debug("Closing session {} failed: {}", session.getId(), e.getMessage());
+        }
     }
 }

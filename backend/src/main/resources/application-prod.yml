@@ -6,6 +6,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # Redis sits on every request (rate limit) and every push: wait briefly, then fail open.
+      # The defaults (60 s command timeout) turned a Redis outage into a 60 s stall per request.
+      timeout: 500ms
+      connect-timeout: 500ms
 
   datasource:
     url: ${SPRING_DATASOURCE_URL}

@@ -107,7 +107,8 @@ const GroupInfo = () => {
     if (!currentUser || !id) return;
     
     // Connect to WebSocket dynamically based on API base URL
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://13.214.163.45.nip.io/api';
+    // same fallback as lib/api.js (the old one pointed at the retired EC2 host)
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
     const wsProtocol = apiBaseUrl.startsWith('https') ? 'wss:' : 'ws:';
     let host;
     try {

@@ -5,7 +5,10 @@ import com.namphong.backend.websocket.GroupEventBus;
 import com.namphong.backend.websocket.GroupSessionRegistry;
 import com.namphong.backend.websocket.LocalGroupEventBus;
 import com.namphong.backend.websocket.RedisGroupEventBus;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import com.namphong.backend.websocket.RedisSubscriptionStarter;
+import io.lettuce.core.ClientOptions;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.data.redis.autoconfigure.LettuceClientOptionsBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -24,12 +27,17 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
  * Everything else is already shared: JWTs are stateless, refresh tokens live in PostgreSQL,
  * chat history in MongoDB. The Google OAuth2 handshake keeps its state in the HTTP session,
  * so nginx pins only those two endpoints to one node (ip_hash), see nginx.conf.
+ *
+ * The two conditions are exact complements: before, a value such as "" or "1" matched neither,
+ * no RateLimiter bean existed and the backend did not start.
  */
 @Configuration
 public class ScalingConfig {
 
+    static final String REDIS_ENABLED = "'${app.redis.enabled:false}'.trim().equalsIgnoreCase('true')";
+
     @Configuration
-    @ConditionalOnProperty(name = "app.redis.enabled", havingValue = "false", matchIfMissing = true)
+    @ConditionalOnExpression("!" + REDIS_ENABLED)
     static class SingleInstance {
 
         @Bean
@@ -44,7 +52,7 @@ public class ScalingConfig {
     }
 
     @Configuration
-    @ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true")
+    @ConditionalOnExpression(REDIS_ENABLED)
     static class MultiInstance {
 
         @Bean
@@ -56,11 +64,29 @@ public class ScalingConfig {
         // Every node subscribes to all groups' channels and keeps the messages for its own sockets.
         // The dispatcher thread is deliberately not a bean: an Executor bean would replace
         // Spring Boot's default applicationTaskExecutor.
+        // Not started by the context: with Redis down that start failed the whole application.
         @Bean
         RedisMessageListenerContainer groupEventListenerContainer(RedisConnectionFactory connectionFactory,
                                                                   RedisGroupEventBus bus) {
-            return RedisGroupEventBus.listenerContainer(connectionFactory, bus,
+            RedisMessageListenerContainer container = RedisGroupEventBus.listenerContainer(connectionFactory, bus,
                     RedisGroupEventBus.singleThreadDispatcher());
+            container.setAutoStartup(false);
+            return container;
+        }
+
+        @Bean
+        RedisSubscriptionStarter redisSubscriptionStarter(RedisMessageListenerContainer groupEventListenerContainer,
+                                                          RedisConnectionFactory connectionFactory) {
+            return new RedisSubscriptionStarter(groupEventListenerContainer, connectionFactory);
+        }
+
+        // While Redis is unreachable, fail commands at once instead of queueing them until the
+        // command timeout (60 s by default): the rate limiter runs on every request, so queued
+        // commands stalled the whole API. With this the limiter fails open and publish falls back
+        // to local delivery immediately. application-prod.yml also sets short timeouts.
+        @Bean
+        LettuceClientOptionsBuilderCustomizer rejectRedisCommandsWhileDisconnected() {
+            return options -> options.disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS);
         }
 
         @Bean

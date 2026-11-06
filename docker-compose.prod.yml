@@ -25,6 +25,11 @@ services:
     image: redis:7.4-alpine
     restart: always
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # Two identical, stateless instances behind nginx (upstream in nginx.conf).
   # No host ports: nginx reaches them on the compose network, and a direct hit
@@ -46,8 +51,10 @@ services:
       RATE_LIMIT_DURATION: 60
       REDIS_ENABLED: "true"
       REDIS_HOST: redis
+    # Start order only: the backend no longer needs Redis to boot (RedisSubscriptionStarter)
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     logging:
       driver: json-file
       options:

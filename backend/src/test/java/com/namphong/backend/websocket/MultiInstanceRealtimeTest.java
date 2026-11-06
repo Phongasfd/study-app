@@ -325,4 +325,81 @@ class MultiInstanceRealtimeTest {
             deadRedis.destroy();
         }
     }
+
+    @Test
+    void anUnrecognisedRedisFlag_runsAsASingleInstanceInsteadOfFailingToStart() {
+        // "" or "1" used to match neither configuration: no RateLimiter bean, so the app did not start
+        for (String value : List.of("", "1", "yes")) {
+            scalingContext().withPropertyValues("app.redis.enabled=" + value).run(context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context.getBean(RateLimiter.class)).isInstanceOf(InMemoryRateLimiter.class);
+                assertThat(context.getBean(GroupEventBus.class)).isInstanceOf(LocalGroupEventBus.class);
+            });
+        }
+    }
+
+    @Test
+    void redisDownAtStartup_theAppStillStartsAndSubscribesOnceRedisIsUp() throws Exception {
+        int port = freePort();
+        RedisServer lateRedis = RedisServer.newRedisServer().port(port).bind("127.0.0.1").build();
+        try {
+            scalingContext().withPropertyValues("app.redis.enabled=true", "spring.data.redis.port=" + port).run(context -> {
+                // this used to fail: the listener container subscribed during startup and could not reach Redis
+                assertThat(context).hasNotFailed();
+                RedisMessageListenerContainer container = context.getBean(RedisMessageListenerContainer.class);
+                assertFalse(container.isRunning());
+
+                lateRedis.start();
+                awaitTrue(container::isRunning, Duration.ofSeconds(20));
+
+                WebSocketSession socket = mock(WebSocketSession.class);
+                when(socket.isOpen()).thenReturn(true);
+                when(socket.getId()).thenReturn("late");
+                context.getBean(GroupSessionRegistry.class).add(groupId, socket);
+                context.getBean(GroupEventBus.class).publish(groupId, "chat", Map.of("content", "redis is back"));
+                verify(socket, timeout(5_000)).sendMessage(any()); // delivered through Redis Pub/Sub
+            });
+        } finally {
+            lateRedis.stop();
+        }
+    }
+
+    @Test
+    void redisDiesAtRuntime_requestsFailOpenAtOnceInsteadOfWaitingForTheTimeout() throws Exception {
+        int port = freePort();
+        RedisServer dyingRedis = RedisServer.newRedisServer().port(port).bind("127.0.0.1").build();
+        dyingRedis.start();
+        boolean[] stopped = {false};
+        try {
+            // no command timeout configured here: Lettuce's default is 60 s
+            scalingContext().withPropertyValues("app.redis.enabled=true", "spring.data.redis.port=" + port).run(context -> {
+                RateLimiter limiter = context.getBean(RateLimiter.class);
+                assertTrue(limiter.tryAcquire("client"), "connected and counting");
+
+                dyingRedis.stop();
+                stopped[0] = true;
+                Thread.sleep(500); // the client notices the closed connection
+
+                long startedAt = System.nanoTime();
+                assertTrue(limiter.tryAcquire("client"), "fails open");
+                long elapsedMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+                // queued until the timeout before: every request of the API waited 60 s
+                assertTrue(elapsedMs < 2_000, "the rate limiter blocked for " + elapsedMs + " ms");
+            });
+        } finally {
+            if (!stopped[0]) {
+                dyingRedis.stop();
+            }
+        }
+    }
+
+    private static void awaitTrue(java.util.function.BooleanSupplier condition, Duration within) throws InterruptedException {
+        long deadline = System.nanoTime() + within.toNanos();
+        while (!condition.getAsBoolean()) {
+            if (System.nanoTime() > deadline) {
+                fail("condition not met within " + within);
+            }
+            Thread.sleep(50);
+        }
+    }
 }
