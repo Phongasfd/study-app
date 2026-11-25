@@ -1,5 +1,6 @@
 package com.namphong.backend.controller;
 
+import com.namphong.backend.dto.GroupSettingsRequest;
 import com.namphong.backend.dto.StudyGroupDetailResponse;
 import com.namphong.backend.dto.StudyGroupRequest;
 import com.namphong.backend.dto.StudyGroupResponse;
@@ -41,12 +42,7 @@ public class GroupController {
 
         StudyGroup created = groupService.createGroup(groupRequest, owner);
 
-        StudyGroupResponse response = new StudyGroupResponse(
-                created.getId(),
-                created.getName(),
-                owner.getUsername(),
-                created.getMaxMembers()
-        );
+        StudyGroupResponse response = StudyGroupResponse.from(created);
 
         return ResponseEntity.ok(response);
     }
@@ -73,14 +69,21 @@ public class GroupController {
         UUID userId = UUID.fromString(request.getUserPrincipal().getName());
         StudyGroup updated = groupService.updateGroupName(id, groupRequest.getName(), userId);
 
-        StudyGroupResponse response = new StudyGroupResponse(
-                updated.getId(),
-                updated.getName(),
-                updated.getOwner().getUsername(),
-                updated.getMaxMembers()
-        );
+        StudyGroupResponse response = StudyGroupResponse.from(updated);
 
         return ResponseEntity.ok(response);
+    }
+
+    // Update visibility (PUBLIC / PRIVATE), description, capacity: owner only
+    @PatchMapping("/{id}/settings")
+    public ResponseEntity<StudyGroupResponse> updateSettings(@PathVariable UUID id,
+                                                             @jakarta.validation.Valid @RequestBody GroupSettingsRequest settings,
+                                                             HttpServletRequest request) {
+        if (request.getUserPrincipal() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID userId = UUID.fromString(request.getUserPrincipal().getName());
+        return ResponseEntity.ok(StudyGroupResponse.from(groupService.updateSettings(id, settings, userId)));
     }
 
     // Get groups joined by the user 
@@ -92,12 +95,7 @@ public class GroupController {
         UUID userId = UUID.fromString(request.getUserPrincipal().getName());
         List<StudyGroupResponse> joinedGroups = groupService.getJoinedGroups(userId)
                 .stream() // to use map for list 
-                .map(group -> new StudyGroupResponse(
-                        group.getId(),
-                        group.getName(),
-                        group.getOwner().getUsername(),
-                        group.getMaxMembers()
-                ))
+                .map(group -> StudyGroupResponse.from(group))
                 .toList();
 
         return ResponseEntity.ok(joinedGroups);
@@ -108,12 +106,7 @@ public class GroupController {
     public ResponseEntity<List<StudyGroupResponse>> getRandomGroups() {
         List<StudyGroupResponse> randomGroups = groupService.getRandomGroups(4)
                 .stream()
-                .map(group -> new StudyGroupResponse(
-                        group.getId(),
-                        group.getName(),
-                        group.getOwner().getUsername(),
-                        group.getMaxMembers()
-                ))
+                .map(group -> StudyGroupResponse.from(group))
                 .toList();
         return ResponseEntity.ok(randomGroups);
     }
@@ -160,6 +153,8 @@ public class GroupController {
                 group.getName(),
                 group.getOwner().getUsername(),
                 group.getMaxMembers(),
+                group.getVisibility(),
+                group.getDescription(),
                 members
         );
         return ResponseEntity.ok(response);
@@ -170,12 +165,7 @@ public class GroupController {
     public ResponseEntity<List<StudyGroupResponse>> searchGroups(@RequestParam String name) {
         List<StudyGroupResponse> results = groupService.searchGroups(name)
                 .stream()
-                .map(group -> new StudyGroupResponse(
-                        group.getId(),
-                        group.getName(),
-                        group.getOwner().getUsername(),
-                        group.getMaxMembers()
-                ))
+                .map(group -> StudyGroupResponse.from(group))
                 .toList();
         return ResponseEntity.ok(results);
     }

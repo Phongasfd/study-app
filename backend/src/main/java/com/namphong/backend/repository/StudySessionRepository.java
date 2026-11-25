@@ -90,4 +90,55 @@ public interface StudySessionRepository extends JpaRepository<StudySession, UUID
         }
         return latest;
     }
+
+    // ---- goals, achievements, challenges ----
+
+    interface SessionSlice {
+        UUID getId();
+        LocalDateTime getStartTime();
+        Integer getDurationSeconds();
+    }
+
+    /** The user's completed sessions that started in [from, to): only the columns progress needs. */
+    @Query("select s.id as id, s.startTime as startTime, s.durationSeconds as durationSeconds from StudySession s " +
+           "where s.user.id = :userId and s.status = :status and s.startTime >= :from and s.startTime < :to")
+    List<SessionSlice> findSlices(@Param("userId") UUID userId,
+                                  @Param("status") SessionStatus status,
+                                  @Param("from") LocalDateTime from,
+                                  @Param("to") LocalDateTime to);
+
+    default List<SessionSlice> findCompletedSlices(UUID userId, LocalDateTime from, LocalDateTime to) {
+        return findSlices(userId, SessionStatus.COMPLETED, from, to);
+    }
+
+    long countByUserIdAndStatus(UUID userId, SessionStatus status);
+
+    @Query("select coalesce(sum(s.durationSeconds), 0) from StudySession s where s.user.id = :userId and s.status = :status")
+    long sumDurationByUserId(@Param("userId") UUID userId, @Param("status") SessionStatus status);
+
+    /** Days (server time) with at least one credited session, newest first: input for streaks. */
+    @Query(value = "select distinct cast(start_time as date) as study_day from study_sessions " +
+                   "where user_id = :userId and status = 'COMPLETED' and coalesce(duration_seconds, 0) > 0 " +
+                   "order by study_day desc",
+           nativeQuery = true)
+    List<Object> findStudyDaysRaw(@Param("userId") UUID userId);
+
+    default List<java.time.LocalDate> findStudyDays(UUID userId) {
+        return findStudyDaysRaw(userId).stream()
+                .map(StudySessionRepository::toLocalDate)
+                .toList();
+    }
+
+    private static java.time.LocalDate toLocalDate(Object value) {
+        if (value instanceof java.time.LocalDate date) {
+            return date;
+        }
+        if (value instanceof java.sql.Date date) {
+            return date.toLocalDate();
+        }
+        if (value instanceof java.time.LocalDateTime dateTime) {
+            return dateTime.toLocalDate();
+        }
+        return java.time.LocalDate.parse(String.valueOf(value));
+    }
 }

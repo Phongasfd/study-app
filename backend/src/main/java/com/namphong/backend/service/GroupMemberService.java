@@ -1,11 +1,14 @@
 package com.namphong.backend.service;
 
 import com.namphong.backend.entity.GroupMember;
+import com.namphong.backend.entity.NotificationType;
 import com.namphong.backend.entity.StudyGroup;
 import com.namphong.backend.entity.UserEntity;
 import com.namphong.backend.repository.GroupMemberRepository;
 import com.namphong.backend.repository.GroupRepository;
+import com.namphong.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.namphong.backend.exception.BadRequestException;
@@ -20,9 +23,12 @@ import java.util.UUID;
 public class GroupMemberService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final ApplicationEventPublisher events;
 
     public boolean isMember(UUID groupId, UUID userId) {
-        return groupMemberRepository.findByGroupIdAndUserId(groupId, userId).isPresent();
+        return groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
     }
 
     // Chat, ranking entries, ... are only for people inside the group
@@ -32,24 +38,54 @@ public class GroupMemberService {
         }
     }
 
+    /**
+     * Adds a member if the group has room.
+     *
+     * "Count members, compare with max_members, insert" let concurrent joins all see the last
+     * free seat and all get in. The group row is now locked (SELECT ... FOR UPDATE) first, so
+     * joins of one group run one after another and the count is always current.
+     */
     @Transactional
     public GroupMember addMember(StudyGroup group, UserEntity user) {
+        StudyGroup locked = groupRepository.findByIdForUpdate(group.getId())
+                .orElseThrow(() -> new NotFoundException("Group not found"));
+
         // Check if already a member
-        if (groupMemberRepository.findByGroupIdAndUserId(group.getId(), user.getId()).isPresent()) {
+        if (groupMemberRepository.findByGroupIdAndUserId(locked.getId(), user.getId()).isPresent()) {
             throw new BadRequestException("User is already a member of this group");
         }
 
         // Check if group is full
-        long currentMembers = groupMemberRepository.countByGroupId(group.getId());
-        if (group.getMaxMembers() != null && currentMembers >= group.getMaxMembers()) {
+        long currentMembers = groupMemberRepository.countByGroupId(locked.getId());
+        if (locked.getMaxMembers() != null && currentMembers >= locked.getMaxMembers()) {
             throw new BadRequestException("Group is full");
         }
         
         GroupMember member = new GroupMember();
-        member.setGroup(group);
+        member.setGroup(locked);
         member.setUser(user);
         member.setJoinedAt(LocalDateTime.now());
-        return groupMemberRepository.save(member);
+        GroupMember saved = groupMemberRepository.save(member);
+
+        events.publishEvent(new GroupJoinedEvent(user.getId(), locked.getId()));
+        return saved;
+    }
+
+    /** The owner adds someone directly (search + invite); the added user is notified. */
+    @Transactional
+    public GroupMember addMemberAsOwner(UUID groupId, UUID userId, UUID requesterUserId) {
+        StudyGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException("Group not found"));
+        if (!group.isOwnedBy(requesterUserId)) {
+            throw new AccessDeniedException("Only the owner can add members");
+        }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        GroupMember member = addMember(group, user);
+        notificationService.notify(userId, NotificationType.GROUP_MEMBER_ADDED,
+                "You were added to " + group.getName(), group.getName(), "/groups/" + groupId);
+        return member;
     }
 
     @Transactional
@@ -71,5 +107,10 @@ public class GroupMemberService {
         }
 
         groupMemberRepository.deleteByGroupIdAndUserId(groupId, memberUserId);
+
+        if (!isSelf) {
+            notificationService.notify(memberUserId, NotificationType.GROUP_MEMBER_REMOVED,
+                    "You were removed from " + group.getName(), group.getName(), "/groups");
+        }
     }
 }

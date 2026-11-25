@@ -28,4 +28,15 @@ public class StudyGroup {
     private Integer maxMembers;
 
     private LocalDateTime createdAt;
+
+    // PRIVATE groups are joined through a request the owner approves (V4)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private GroupVisibility visibility = GroupVisibility.PUBLIC;
+
+    private String description;
+
+    public boolean isOwnedBy(java.util.UUID userId) {
+        return owner != null && owner.getId().equals(userId);
+    }
 }

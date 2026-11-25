@@ -1,7 +1,23 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './GroupInfo.css';
-import { deleteGroup, removeMember, searchUsers, addMemberToGroup, getGroupDetails, getChatMessages, sendChatMessage, getGroupRanking } from '../lib/api';
+import {
+  deleteGroup,
+  removeMember,
+  searchUsers,
+  addMemberToGroup,
+  getGroupDetails,
+  getChatMessages,
+  sendChatMessage,
+  getGroupRanking,
+  getGroupJoinRequests,
+  approveJoinRequest,
+  rejectJoinRequest,
+  getGroupChallenges,
+  getChallengeDetail,
+  createGroupChallenge,
+  deleteGroupChallenge,
+} from '../lib/api';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +40,17 @@ const GroupInfo = () => {
   const [ranking, setRanking] = useState([]); // state for group rankings
   const [chatMessages, setChatMessages] = useState([]); // state for chat messages
   const [ws, setWs] = useState(null); // websocket state for real-time updates
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [challenges, setChallenges] = useState([]);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [challengeForm, setChallengeForm] = useState({
+    title: '',
+    description: '',
+    targetHours: '10',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10),
+  });
   
   const [secondsTick, setSecondsTick] = useState(0); // used to force re-renders every second so active timers count up
 
@@ -97,10 +124,29 @@ const GroupInfo = () => {
     }
   };
 
+  const fetchChallenges = async () => {
+    try {
+      const list = await getGroupChallenges(id);
+      setChallenges(list || []);
+    } catch {
+      // non-member or offline
+    }
+  };
+
+  const fetchJoinRequests = async () => {
+    try {
+      const reqs = await getGroupJoinRequests(id);
+      setJoinRequests(reqs || []);
+    } catch {
+      setJoinRequests([]);
+    }
+  };
+
   useEffect(() => {
     fetchGroupInfo();
     fetchMessages();
     fetchRanking();
+    fetchChallenges();
   }, [id]);
 
   useEffect(() => {
@@ -172,6 +218,73 @@ const GroupInfo = () => {
   }, [id, currentUser]);
 
   const isOwner = group?.ownerName === currentUser?.username;
+
+  useEffect(() => {
+    if (isOwner && id) {
+      fetchJoinRequests();
+    }
+  }, [isOwner, id]);
+
+  const handleApproveRequest = async (reqId) => {
+    try {
+      await approveJoinRequest(id, reqId);
+      await Promise.all([fetchJoinRequests(), fetchGroupInfo(), fetchRanking()]);
+    } catch (err) {
+      alert(err.message || 'Failed to approve');
+    }
+  };
+
+  const handleRejectRequest = async (reqId) => {
+    try {
+      await rejectJoinRequest(id, reqId);
+      await fetchJoinRequests();
+    } catch (err) {
+      alert(err.message || 'Failed to reject');
+    }
+  };
+
+  const handleCreateChallenge = async (e) => {
+    e.preventDefault();
+    try {
+      await createGroupChallenge(id, {
+        title: challengeForm.title.trim(),
+        description: challengeForm.description.trim() || null,
+        targetHours: Number(challengeForm.targetHours),
+        startDate: challengeForm.startDate,
+        endDate: challengeForm.endDate,
+      });
+      setShowChallengeModal(false);
+      setChallengeForm((prev) => ({ ...prev, title: '', description: '' }));
+      await fetchChallenges();
+    } catch (err) {
+      alert(err.message || 'Failed to create challenge');
+    }
+  };
+
+  const handleViewChallenge = async (challengeId) => {
+    if (selectedChallenge?.challenge?.id === challengeId) {
+      setSelectedChallenge(null);
+      return;
+    }
+    try {
+      const detail = await getChallengeDetail(id, challengeId);
+      setSelectedChallenge(detail);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteChallenge = async (challengeId) => {
+    try {
+      await deleteGroupChallenge(id, challengeId);
+      if (selectedChallenge?.challenge?.id === challengeId) {
+        setSelectedChallenge(null);
+      }
+      await fetchChallenges();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -476,6 +589,176 @@ const GroupInfo = () => {
               </button>
             </form>
         </div>
+      </div>
+
+      {/* Pending Join Requests (Owner of Private Group) */}
+      {isOwner && joinRequests.length > 0 && (
+        <div className="info-card" style={{ marginTop: 20 }}>
+          <h3 className="h3 text-primary card-title">{t('groupInfo.joinRequests')} ({joinRequests.length})</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {joinRequests.map((req) => (
+              <div
+                key={req.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'var(--color-surface-container-low)',
+                }}
+              >
+                <div>
+                  <p className="label-sm text-primary">{req.username}</p>
+                  {req.message && <p className="body-md text-on-surface-variant" style={{ fontSize: 13 }}>{req.message}</p>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-primary-sm" onClick={() => handleApproveRequest(req.id)}>
+                    {t('groupInfo.approve')}
+                  </button>
+                  <button className="btn-secondary" style={{ padding: '6px 12px' }} onClick={() => handleRejectRequest(req.id)}>
+                    {t('groupInfo.reject')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Group Challenges Section */}
+      <div className="info-card" style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <h3 className="h3 text-primary card-title" style={{ margin: 0 }}>{t('groupInfo.challenges')}</h3>
+          {isOwner && (
+            <button className="btn-primary-sm" onClick={() => setShowChallengeModal(!showChallengeModal)}>
+              {showChallengeModal ? t('auth.cancel') : t('groupInfo.newChallenge')}
+            </button>
+          )}
+        </div>
+
+        {showChallengeModal && (
+          <form
+            onSubmit={handleCreateChallenge}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 10,
+              padding: 14,
+              marginBottom: 16,
+              borderRadius: 12,
+              background: 'var(--color-surface-container-low)',
+            }}
+          >
+            <input
+              type="text"
+              className="user-search-input"
+              placeholder={t('groupInfo.challengeTitlePlaceholder')}
+              value={challengeForm.title}
+              onChange={(e) => setChallengeForm({ ...challengeForm, title: e.target.value })}
+              required
+            />
+            <input
+              type="number"
+              step="0.5"
+              min="0.5"
+              max="1000"
+              className="user-search-input"
+              placeholder={t('groupInfo.targetHours')}
+              value={challengeForm.targetHours}
+              onChange={(e) => setChallengeForm({ ...challengeForm, targetHours: e.target.value })}
+              required
+            />
+            <input
+              type="date"
+              className="user-search-input"
+              value={challengeForm.startDate}
+              onChange={(e) => setChallengeForm({ ...challengeForm, startDate: e.target.value })}
+              required
+            />
+            <input
+              type="date"
+              className="user-search-input"
+              value={challengeForm.endDate}
+              onChange={(e) => setChallengeForm({ ...challengeForm, endDate: e.target.value })}
+              required
+            />
+            <button type="submit" className="btn-primary-sm">
+              {t('groupInfo.createChallenge')}
+            </button>
+          </form>
+        )}
+
+        {challenges.length === 0 ? (
+          <p className="body-md text-on-surface-variant">{t('groupInfo.noChallenges')}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+            {challenges.map((ch) => (
+              <div
+                key={ch.id}
+                style={{
+                  padding: 16,
+                  borderRadius: 14,
+                  background: 'var(--color-surface-container-low)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong className="text-primary">{ch.title}</strong>
+                  <span className="studying-tag">{ch.status}</span>
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--color-outline)' }}>
+                  {ch.startDate} → {ch.endDate} • {(ch.targetSeconds / 3600).toFixed(1)}h
+                </span>
+                <div className="progress-bar-wrap">
+                  <div className="progress-bar-fill" style={{ width: `${ch.myPercent}%` }}></div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                  <span>{(ch.myProgressSeconds / 3600).toFixed(1)}h ({ch.myPercent}%)</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn-primary-sm"
+                      onClick={() => handleViewChallenge(ch.id)}
+                    >
+                      {t('groupInfo.viewLeaderboard')}
+                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className="remove-member-btn"
+                        onClick={() => handleDeleteChallenge(ch.id)}
+                      >
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selectedChallenge && (
+          <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: 'var(--color-surface-container)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <strong>{selectedChallenge.challenge?.title}</strong>
+              <span style={{ fontSize: 12 }}>
+                {t('groupInfo.completedCount', { count: selectedChallenge.completedCount })}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(selectedChallenge.participants || []).map((p) => (
+                <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>#{p.rank} {p.username}</span>
+                  <span>{(p.progressSeconds / 3600).toFixed(1)}h ({p.percent}%)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
