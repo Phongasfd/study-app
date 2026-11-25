@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import './Stats.css';
 import { useTranslation } from 'react-i18next';
-import { getWeeklyStats, syncDailyStat, getMonthlyStats, getWeeklySubjectStats, getMonthlySubjectStats } from '../lib/api';
+import {
+  getWeeklyStats,
+  syncDailyStat,
+  getMonthlyStats,
+  getWeeklySubjectStats,
+  getMonthlySubjectStats,
+  getGoals,
+  createGoal,
+  deleteGoal,
+  getSubjects,
+} from '../lib/api';
 
 // Day labels aligned with Java's DayOfWeek Mon=1 … Sun=7
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -67,6 +77,26 @@ const Stats = () => {
   const [weeklyLoading, setWeeklyLoading] = useState(true);
   const [weeklySubjectData, setWeeklySubjectData] = useState([]);
   const [studiedToday, setStudiedToday] = useState(0);
+  const [goals, setGoals] = useState([]);
+  const [userSubjects, setUserSubjects] = useState([]);
+  const [newGoalPeriod, setNewGoalPeriod] = useState('WEEKLY');
+  const [newGoalSubjectId, setNewGoalSubjectId] = useState('');
+  const [newGoalHours, setNewGoalHours] = useState('10');
+
+  const loadGoals = async () => {
+    try {
+      const list = await getGoals();
+      setGoals(list || []);
+      const dailyOverall = (list || []).find((g) => g.period === 'DAILY' && !g.subjectId);
+      if (dailyOverall) {
+        const hrs = parseFloat((dailyOverall.targetSeconds / 3600).toFixed(2));
+        setDailyGoal(hrs);
+        localStorage.setItem('dailyGoal', String(hrs));
+      }
+    } catch {
+      // unauthenticated or offline: fallback to localStorage
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,6 +131,8 @@ const Stats = () => {
     };
   
     fetchData();
+    loadGoals();
+    getSubjects().then((s) => setUserSubjects(s || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -182,13 +214,44 @@ const Stats = () => {
     setIsEditingGoal(true);
   };
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     const val = parseFloat(goalInput);
     if (!isNaN(val) && val > 0 && val <= 24) {
       setDailyGoal(val);
       localStorage.setItem('dailyGoal', String(val));
+      try {
+        await createGoal({ subjectId: null, period: 'DAILY', targetMinutes: Math.round(val * 60) });
+        await loadGoals();
+      } catch (err) {
+        console.warn('Could not persist daily goal to server:', err);
+      }
     }
     setIsEditingGoal(false);
+  };
+
+  const handleCreateExtraGoal = async (e) => {
+    e.preventDefault();
+    const hrs = parseFloat(newGoalHours);
+    if (isNaN(hrs) || hrs <= 0) return;
+    try {
+      await createGoal({
+        subjectId: newGoalSubjectId || null,
+        period: newGoalPeriod,
+        targetMinutes: Math.round(hrs * 60),
+      });
+      await loadGoals();
+    } catch (err) {
+      alert(err.message || 'Failed to save goal');
+    }
+  };
+
+  const handleDeleteGoal = async (id) => {
+    try {
+      await deleteGoal(id);
+      await loadGoals();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleGoalKeyDown = (e) => {
@@ -393,6 +456,82 @@ const Stats = () => {
                 : t('stats.keepItUp', { hours: (dailyGoal - studiedToday).toFixed(1) })}
             </p>
           </div>
+        </div>
+
+        {/* Multi-Period & Subject Study Goals */}
+        <div className="bento-card col-span-12">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <h3 className="h3">{t('stats.studyGoals')}</h3>
+            <form onSubmit={handleCreateExtraGoal} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select
+                className="filter-select"
+                value={newGoalPeriod}
+                onChange={(e) => setNewGoalPeriod(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--color-outline-variant)' }}
+              >
+                <option value="DAILY">{t('stats.periodDaily')}</option>
+                <option value="WEEKLY">{t('stats.periodWeekly')}</option>
+                <option value="MONTHLY">{t('stats.periodMonthly')}</option>
+              </select>
+              <select
+                className="filter-select"
+                value={newGoalSubjectId}
+                onChange={(e) => setNewGoalSubjectId(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--color-outline-variant)' }}
+              >
+                <option value="">{t('stats.overallGoal')}</option>
+                {userSubjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                max="744"
+                value={newGoalHours}
+                onChange={(e) => setNewGoalHours(e.target.value)}
+                style={{ width: 76, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--color-outline-variant)' }}
+              />
+              <span className="label-sm">{t('stats.hoursShort')}</span>
+              <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px' }}>
+                {t('stats.addGoal')}
+              </button>
+            </form>
+          </div>
+
+          {goals.length === 0 ? (
+            <p className="body-md text-on-surface-variant" style={{ marginTop: 12 }}>{t('stats.noGoalsYet')}</p>
+          ) : (
+            <div className="subject-grid" style={{ marginTop: 16 }}>
+              {goals.map((g) => (
+                <div className="subject-item" key={g.id}>
+                  <div className="subject-header">
+                    <div className="subject-title-wrapper">
+                      <span className="h3 subject-title">
+                        {g.subjectName || t('stats.overallGoal')} ({g.period})
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="font-bold text-on-surface-variant">
+                        {(g.progressSeconds / 3600).toFixed(1)}h / {(g.targetSeconds / 3600).toFixed(1)}h ({g.percent}%)
+                      </span>
+                      <button
+                        onClick={() => handleDeleteGoal(g.id)}
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-outline)' }}
+                        title="Remove goal"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="progress-bar-bg">
+                    <div className="progress-bar-fill bg-indigo" style={{ width: `${g.percent}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Time per Subject */}

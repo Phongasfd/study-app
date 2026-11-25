@@ -82,9 +82,9 @@ export const deleteSubject = async (id) => {
   }
 };
 
-export const createGroup = async (name, maxMembers) => {
+export const createGroup = async (name, maxMembers, visibility = 'PUBLIC', description = '') => {
   try {
-    const response = await axiosClient.post('/group/', { name, maxMembers });
+    const response = await axiosClient.post('/group/', { name, maxMembers, visibility, description });
     return response.data;
   } catch (error) {
 
@@ -93,6 +93,19 @@ export const createGroup = async (name, maxMembers) => {
       (typeof error.response?.data === "string" && error.response.data) ||
       error.message;
 
+    throw new Error(message);
+  }
+};
+
+export const updateGroupSettings = async (id, settings) => {
+  try {
+    const response = await axiosClient.patch(`/group/${id}/settings`, settings);
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      (typeof error.response?.data === "string" && error.response.data) ||
+      error.message;
     throw new Error(message);
   }
 };
@@ -153,17 +166,17 @@ export const deleteGroup = async (id) => {
   }
 };
 
-export const joinGroup = async (groupId) => {
+export const joinGroup = async (groupId, message = null) => {
   try {
-    const response = await axiosClient.post(`/group-member/join/${groupId}`);
+    const response = await axiosClient.post(`/group-member/join/${groupId}`, message ? { message } : {});
     return response.data;
   } catch (error) {
-    const message =
+    const errMessage =
       error.response?.data?.message ||
       (typeof error.response?.data === "string" && error.response.data) ||
       error.message;
 
-    throw new Error(message);
+    throw new Error(errMessage);
   }
 };
 
@@ -394,3 +407,257 @@ export const sendChatMessage = async (groupId, content) => {
     throw new Error(message);
   }
 };
+
+const unwrapError = (error) => {
+  const message =
+    error.response?.data?.message ||
+    (typeof error.response?.data === "string" && error.response.data) ||
+    error.message;
+  throw new Error(message);
+};
+
+// ---- Study Goals ----
+
+export const getGoals = async () => {
+  try {
+    const response = await axiosClient.get('/goals');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getDailyGoal = async () => {
+  try {
+    const response = await axiosClient.get('/goals/daily');
+    return response.status === 204 ? null : response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const createGoal = async ({ subjectId = null, period, targetMinutes }) => {
+  try {
+    const response = await axiosClient.post('/goals', { subjectId, period, targetMinutes });
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const updateGoal = async (id, targetMinutes) => {
+  try {
+    const response = await axiosClient.put(`/goals/${id}`, { targetMinutes });
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const deleteGoal = async (id) => {
+  try {
+    await axiosClient.delete(`/goals/${id}`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+// ---- Study Tasks ----
+
+export const getTasks = async (params = {}) => {
+  try {
+    const response = await axiosClient.get('/tasks', { params });
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getTaskSummary = async () => {
+  try {
+    const response = await axiosClient.get('/tasks/summary');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const createTask = async (task) => {
+  try {
+    const response = await axiosClient.post('/tasks', task);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const updateTask = async (id, task) => {
+  try {
+    const response = await axiosClient.put(`/tasks/${id}`, task);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const changeTaskStatus = async (id, status) => {
+  try {
+    const response = await axiosClient.patch(`/tasks/${id}/status`, { status });
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const deleteTask = async (id) => {
+  try {
+    await axiosClient.delete(`/tasks/${id}`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+// ---- Profile & Achievements ----
+
+export const getProfileSummary = async () => {
+  try {
+    const response = await axiosClient.get('/profile/summary');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getAchievements = async () => {
+  try {
+    const response = await axiosClient.get('/profile/achievements');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+// ---- Notifications ----
+
+export const getNotifications = async (page = 0, size = 15) => {
+  try {
+    const response = await axiosClient.get('/notifications', { params: { page, size } });
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getUnreadNotificationCount = async () => {
+  try {
+    const response = await axiosClient.get('/notifications/unread-count');
+    return response.data?.count ?? 0;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const markNotificationRead = async (id) => {
+  try {
+    await axiosClient.patch(`/notifications/${id}/read`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const markAllNotificationsRead = async () => {
+  try {
+    const response = await axiosClient.patch('/notifications/read-all');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const deleteNotification = async (id) => {
+  try {
+    await axiosClient.delete(`/notifications/${id}`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+// ---- Group Join Requests & Challenges ----
+
+export const getGroupJoinRequests = async (groupId) => {
+  try {
+    const response = await axiosClient.get(`/group/${groupId}/join-requests`);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getMyPendingJoinRequests = async () => {
+  try {
+    const response = await axiosClient.get('/group/join-requests/mine');
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const approveJoinRequest = async (groupId, requestId) => {
+  try {
+    await axiosClient.post(`/group/${groupId}/join-requests/${requestId}/approve`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const rejectJoinRequest = async (groupId, requestId) => {
+  try {
+    await axiosClient.post(`/group/${groupId}/join-requests/${requestId}/reject`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const cancelMyJoinRequest = async (groupId) => {
+  try {
+    await axiosClient.delete(`/group/${groupId}/join-requests/mine`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getGroupChallenges = async (groupId) => {
+  try {
+    const response = await axiosClient.get(`/group/${groupId}/challenges`);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const getChallengeDetail = async (groupId, challengeId) => {
+  try {
+    const response = await axiosClient.get(`/group/${groupId}/challenges/${challengeId}`);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const createGroupChallenge = async (groupId, payload) => {
+  try {
+    const response = await axiosClient.post(`/group/${groupId}/challenges`, payload);
+    return response.data;
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+
+export const deleteGroupChallenge = async (groupId, challengeId) => {
+  try {
+    await axiosClient.delete(`/group/${groupId}/challenges/${challengeId}`);
+  } catch (error) {
+    unwrapError(error);
+  }
+};
+

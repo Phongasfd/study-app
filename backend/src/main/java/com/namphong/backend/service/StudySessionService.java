@@ -172,6 +172,8 @@ public class StudySessionService {
             for (GroupMember member : groupMemberRepository.findAllByUserId(userId)) {
                 groupRankingRepository.addDuration(member.getGroup().getId(), userId, duration);
             }
+            // achievements, goals: evaluated after commit, only for the request that credited the time
+            events.publishEvent(new StudySessionCompletedEvent(userId, session.getId(), session.getStartTime(), duration));
         }
         return true;
     }

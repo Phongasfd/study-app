@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import Stats from './pages/Stats';
 import Groups from './pages/Groups';
 import GroupInfo from './pages/GroupInfo';
+import Tasks from './pages/Tasks';
+import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import { AuthProvider } from './context/AuthContext';
@@ -22,9 +24,11 @@ const AppContent = () => {
       <main className="main-content container">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupInfo />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>

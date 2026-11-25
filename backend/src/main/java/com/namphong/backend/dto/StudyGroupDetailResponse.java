@@ -1,5 +1,6 @@
 package com.namphong.backend.dto;
 
+import com.namphong.backend.entity.GroupVisibility;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -14,6 +15,8 @@ public class StudyGroupDetailResponse {
     private String name;
     private String ownerName;
     private Integer maxMembers;
+    private GroupVisibility visibility;
+    private String description;
     private List<MemberResponse> members;
 
     @Getter

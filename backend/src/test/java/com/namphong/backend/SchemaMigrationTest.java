@@ -24,10 +24,23 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SchemaMigrationTest {
 
-    private static final Class<?>[] ENTITIES = {
+    /** The tables production had before Flyway (created by ddl-auto: update). */
+    private static final Class<?>[] LEGACY_ENTITIES = {
             AccountEntity.class, DailyStat.class, GroupMember.class, GroupRanking.class, RefreshToken.class,
             SessionSubject.class, StudyGroup.class, StudySession.class, Subject.class, UserEntity.class
     };
+
+    /** Every entity today: what validate checks the migrated schema against. */
+    private static final Class<?>[] ENTITIES = concat(LEGACY_ENTITIES, new Class<?>[]{
+            StudyGoal.class, StudyTask.class, Achievement.class, UserAchievement.class, Notification.class,
+            GroupChallenge.class, GroupJoinRequest.class
+    });
+
+    private static Class<?>[] concat(Class<?>[] a, Class<?>[] b) {
+        Class<?>[] all = java.util.Arrays.copyOf(a, a.length + b.length);
+        System.arraycopy(b, 0, all, a.length, b.length);
+        return all;
+    }
 
     // same settings as config/FlywayConfig
     private static Flyway flyway(DataSource dataSource) {
@@ -40,6 +53,10 @@ class SchemaMigrationTest {
 
     /** Builds a Hibernate SessionFactory with the given hbm2ddl action (validate / create). */
     private static void runHibernate(DataSource dataSource, String hbm2ddlAction) {
+        runHibernate(dataSource, hbm2ddlAction, ENTITIES);
+    }
+
+    private static void runHibernate(DataSource dataSource, String hbm2ddlAction, Class<?>[] entities) {
         var registry = new StandardServiceRegistryBuilder()
                 .applySetting("hibernate.connection.datasource", dataSource)
                 .applySetting("hibernate.hbm2ddl.auto", hbm2ddlAction)
@@ -47,7 +64,7 @@ class SchemaMigrationTest {
                 .applySetting("hibernate.implicit_naming_strategy", "org.springframework.boot.hibernate.SpringImplicitNamingStrategy")
                 .build();
         MetadataSources sources = new MetadataSources(registry);
-        for (Class<?> entity : ENTITIES) {
+        for (Class<?> entity : entities) {
             sources.addAnnotatedClass(entity);
         }
         try (SessionFactory ignored = sources.buildMetadata().buildSessionFactory()) {
@@ -68,7 +85,7 @@ class SchemaMigrationTest {
 
         MigrateResult result = flyway(dataSource).migrate();
 
-        assertEquals(3, result.migrationsExecuted, "V1 baseline schema + V2 index + V3 one running session");
+        assertEquals(4, result.migrationsExecuted, "V1 baseline schema + V2 index + V3 one running session + V4 planner");
         assertDoesNotThrow(() -> runHibernate(dataSource, "validate"));
         assertTrue(indexExists(dataSource, "idx_study_sessions_user_status_start"));
         assertTrue(indexExists(dataSource, "uq_study_sessions_one_running_per_user"));
@@ -78,12 +95,12 @@ class SchemaMigrationTest {
     void existingDatabaseFromDdlAutoUpdate_isBaselinedAndOnlyGetsNewMigrations() throws Exception {
         // Simulates prod today: tables created by Hibernate, no flyway_schema_history
         DataSource dataSource = EmbeddedPostgresSupport.dataSource(EmbeddedPostgresSupport.freshDatabaseUrl("legacy"));
-        runHibernate(dataSource, "create");
+        runHibernate(dataSource, "create", LEGACY_ENTITIES);
 
         MigrateResult result = flyway(dataSource).migrate();
 
-        assertEquals(2, result.migrationsExecuted, "V1 must be skipped (baselined), only V2 and V3 run");
-        assertEquals("3", result.targetSchemaVersion);
+        assertEquals(3, result.migrationsExecuted, "V1 must be skipped (baselined), only V2, V3 and V4 run");
+        assertEquals("4", result.targetSchemaVersion);
         assertDoesNotThrow(() -> runHibernate(dataSource, "validate"));
         assertTrue(indexExists(dataSource, "idx_study_sessions_user_status_start"));
         assertTrue(indexExists(dataSource, "uq_study_sessions_one_running_per_user"));

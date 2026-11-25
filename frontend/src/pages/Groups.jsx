@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup, getGroupRanking, createGroupRanking } from '../lib/api';
+import { createGroup, getGroupsJoined, getRandomGroups, searchGroups, joinGroup, getGroupRanking, createGroupRanking, getMyPendingJoinRequests, cancelMyJoinRequest } from '../lib/api';
 
 const Groups = () => {
   const { user } = useAuth();
@@ -11,8 +11,11 @@ const Groups = () => {
   const [showModal, setShowModal] = useState(false); // Modal visibility state
   const [formData, setFormData] = useState({
     name: '',
-    maxMembers: ''
+    maxMembers: '',
+    visibility: 'PUBLIC',
+    description: ''
   }); // Form data state
+  const [pendingGroupIds, setPendingGroupIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false); // Loading state for form submission 
   const [groupsJoined, setGroupsJoined] = useState([]); // for my group section
   const [trendingGroups, setTrendingGroups] = useState([]); // for trending group section 
@@ -26,7 +29,12 @@ const Groups = () => {
 
   const handleJoinGroup = async (id) => {
     try {
-      await joinGroup(id);
+      const result = await joinGroup(id);
+      if (result?.status === 'REQUESTED') {
+        setPendingGroupIds(prev => new Set(prev).add(id));
+        alert(t('groups.joinRequestSent'));
+        return;
+      }
       try {
         await createGroupRanking(id, user.id);
       } catch (e) {
@@ -39,6 +47,19 @@ const Groups = () => {
     }
   }; // for user want to join group 
 
+  const handleCancelRequest = async (id) => {
+    try {
+      await cancelMyJoinRequest(id);
+      setPendingGroupIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleOpenModal = () => {
     if (!user) {
       window.location.href = "/login";
@@ -49,7 +70,7 @@ const Groups = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setFormData({ name: '', maxMembers: '' });
+    setFormData({ name: '', maxMembers: '', visibility: 'PUBLIC', description: '' });
   }; // Close create new group modal and reset form data
 
   const handleInputChange = (e) => {
@@ -69,7 +90,12 @@ const Groups = () => {
 
     setIsLoading(true);
     try {
-      const newGroup = await createGroup(formData.name, Number(formData.maxMembers));
+      const newGroup = await createGroup(
+        formData.name,
+        formData.maxMembers ? Number(formData.maxMembers) : 20,
+        formData.visibility,
+        formData.description
+      );
       try {
         await createGroupRanking(newGroup.id, user.id);
       } catch (e) {
@@ -119,6 +145,9 @@ const Groups = () => {
 
     fetchGroups(); // fetch groups joined
     fetchTrendingGroups(); // fetch groups trending  
+    getMyPendingJoinRequests()
+      .then((reqs) => setPendingGroupIds(new Set((reqs || []).map((r) => r.groupId))))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -220,11 +249,15 @@ const Groups = () => {
               <div className="trending-content">
                 <div>
                   <div className="trending-tags">
-                    <span className="tag-badge bg-tertiary-fixed text-on-tertiary-fixed">Active</span>
+                    <span className="tag-badge bg-tertiary-fixed text-on-tertiary-fixed">
+                      {group.visibility === 'PRIVATE' ? t('groups.privateTag') : t('groups.publicTag')}
+                    </span>
                     <span className="tag-text">• {group.maxMembers} {t('groups.maxMembersText')}</span>
                   </div>
                   <h4 className="body-lg font-h trending-title">{group.name}</h4>
-                  <p className="body-md text-sm text-on-surface-variant line-clamp-2">Owned by {group.ownerName}. Join this group to study together!</p>
+                  <p className="body-md text-sm text-on-surface-variant line-clamp-2">
+                    {group.description || `Owned by ${group.ownerName}. Join this group to study together!`}
+                  </p>
                 </div>
                 <div className="trending-footer">
                   <div className="avatar-group">
@@ -232,7 +265,15 @@ const Groups = () => {
                     <div className="avatar-sm bg-slate-300"></div>
                     <div className="avatar-sm bg-slate-400"></div>
                   </div>
-                  <button className="btn-join" onClick={() => handleJoinGroup(group.id)}>{t('groups.join')}</button>
+                  {pendingGroupIds.has(group.id) ? (
+                    <button className="btn-join" onClick={() => handleCancelRequest(group.id)}>
+                      {t('groups.cancelRequest')}
+                    </button>
+                  ) : (
+                    <button className="btn-join" onClick={() => handleJoinGroup(group.id)}>
+                      {group.visibility === 'PRIVATE' ? t('groups.requestJoin') : t('groups.join')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -283,6 +324,37 @@ const Groups = () => {
                   value={formData.maxMembers}
                   onChange={handleInputChange}
                   placeholder={t('groups.maxMembersPlaceholder')}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="visibility" className="label-sm text-on-surface-variant">
+                  {t('groups.visibility')}
+                </label>
+                <select
+                  id="visibility"
+                  name="visibility"
+                  value={formData.visibility}
+                  onChange={handleInputChange}
+                  className="form-input"
+                >
+                  <option value="PUBLIC">{t('groups.public')}</option>
+                  <option value="PRIVATE">{t('groups.private')}</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="description" className="label-sm text-on-surface-variant">
+                  {t('groups.description')}
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows={2}
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder={t('groups.descriptionPlaceholder')}
                   className="form-input"
                 />
               </div>

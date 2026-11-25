@@ -63,8 +63,11 @@ flowchart TB
 
 - **Accounts:** e-mail and password (BCrypt) or Google OAuth2. Short-lived JWT in an `httpOnly` cookie; refresh-token rotation.
 - **Focus timer:** start and stop study sessions, tag them with subjects, and see a daily base time.
+- **Study planner (tasks & goals):** personal to-do list with subject tags, priorities, due dates, estimated durations, and overdue filtering; multi-period study goals (`DAILY`, `WEEKLY`, `MONTHLY`) overall or per subject with live progress computed from sessions.
+- **Achievements & streaks:** 16 database-driven achievements (session milestones, total hours, 2h marathons, early bird / night owl in the user's time zone, 3/7/30-day study streaks, daily goal completion, tasks done, group participation, and challenge completion) evaluated asynchronously after commit via `INSERT ... ON CONFLICT DO NOTHING`.
+- **In-app notifications:** bell badge and dropdown for unlocked achievements, group invitations/removals, private group join requests and decisions, and new group challenges, plus a scheduled retention cleanup job.
+- **Groups (public & private) & challenges:** create public or private groups (with an approval queue for join requests and `SELECT ... FOR UPDATE` capacity locking), search, discover random groups, and run time-boxed group study challenges with a constant-query participant leaderboard.
 - **Statistics:** weekly and monthly study time, broken down by subject.
-- **Groups:** create, search, discover random groups, join (with a capacity limit); the owner adds or removes members, renames or deletes the group.
 - **Live leaderboard:** total time (completed plus the running session) and who is studying now. Ties share a rank. Pushed to every open tab on each start or stop.
 - **Group chat:** real-time over WebSocket and persisted in MongoDB; history loads on open.
 - **i18n:** Vietnamese and English.
@@ -164,7 +167,11 @@ cd backend
 | `MultiInstanceRealtimeTest` | Two nodes on one real Redis: a chat sent on node A reaches members on both nodes exactly once and in order (200 messages), other groups get nothing, and without Redis node B never sees it. The rate limit is shared across nodes (in-memory buckets would allow 2x). With Redis down, events still reach local sockets and requests aren't blocked. Redis down at startup: the app starts and subscribes once Redis is up. Redis dying at runtime: the limiter fails open in well under 2 s. `app.redis.enabled` wires the right beans, and an unrecognised value falls back to one instance instead of failing to start |
 | `GroupSessionRegistryTest` | A client that stops reading is closed and dropped, so it reconnects instead of staying connected and receiving nothing |
 | `GroupRankingQueryCountTest` | Same statement count for 3 and 15 members (4 or fewer); totals, ranks and "studying" flags are correct |
-| `SchemaMigrationTest` | A fresh DB migrates V1 to V3 and validates. A DB created by `ddl-auto: update` is baselined, only V2 and V3 run, and it validates. V3 closes existing duplicate `RUNNING` sessions so its unique index can be built |
+| `SchemaMigrationTest` | A fresh DB migrates V1 to V4 and validates against all 17 JPA entities. A DB created by `ddl-auto: update` is baselined, only V2–V4 run, and it validates. V3 closes existing duplicate `RUNNING` sessions so its unique index can be built |
+| `AchievementServiceTest` | Seeded 16-achievement catalog unlocks once per user (`ON CONFLICT DO NOTHING`), evaluates time-of-day rules in the user's timezone, computes streaks and daily goal completion, and sends no duplicate notifications under 8-thread concurrency |
+| `GroupJoinConcurrencyTest` | 8 concurrent joins against a group with 3 free seats never exceed `max_members` (`SELECT ... FOR UPDATE`); private groups queue a `PENDING` join request, concurrent approvals add the member once, and an approval into a full group rolls back cleanly |
+| `PlannerAndChallengesIntegrationTest` | Multi-period and per-subject goals deactivate replaced goals and compute progress; tasks enforce owner isolation and due/overdue summaries; challenge leaderboard runs in a constant number of SQL statements (4 or fewer) regardless of group size |
+| `StreakCalculatorTest` & `PlannerRulesTest` | Pure unit tests for streak windows, goal period boundaries, multi-subject duration splitting, task display ordering, and challenge date validation |
 | `StudySessionServiceTest` | Server time only, owner-only completion, idempotent completion, a lost race credits nothing, 12h cap, credit on auto-close |
 | `ChatWebSocketHandlerTest` | Rejects unauthenticated users and non-members, ignores a spoofed `userId`, stops a user who left the group |
 | `RateLimitingFilterTest` | 429 after the limit; a spoofed `X-Forwarded-For` doesn't reset the bucket |
@@ -251,7 +258,10 @@ backend/src/main/java/com/namphong/backend/
   security/     JwtFilter, SecurityConfig, OAuth2 success handler
   config/       ScalingConfig (single vs multi-instance), rate limiters, WebSocket, Flyway
   repository/   Spring Data (batched projections, conditional update, atomic upsert)
-backend/src/main/resources/db/migration/   V1 baseline, V2 index, V3 one running session per user
+backend/src/main/resources/db/migration/   V1 baseline, V2 index, V3 one running session per user,
+                                           V4 planner (study_goals, study_tasks), achievements
+                                           (achievements, user_achievements), notifications,
+                                           group_challenges, group_join_requests & group visibility
 frontend/src/   pages, timer context, i18n (vi, en)
 ```
 

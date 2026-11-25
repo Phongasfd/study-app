@@ -41,13 +41,20 @@ public final class EmbeddedPostgresSupport {
     }
 
     /** Creates an empty database and returns its JDBC URL (user/password: postgres/postgres). */
-    public static String freshDatabaseUrl(String prefix) {
+    public static synchronized String freshDatabaseUrl(String prefix) {
         String name = prefix + "_" + COUNTER.incrementAndGet();
         try (Connection c = instance().getPostgresDatabase().getConnection();
              Statement s = c.createStatement()) {
             s.execute("CREATE DATABASE " + name);
         } catch (SQLException e) {
-            throw new IllegalStateException("Could not create database " + name, e);
+            // If the postmaster died or restarted, start a fresh instance once
+            postgres = null;
+            try (Connection c = instance().getPostgresDatabase().getConnection();
+                 Statement s = c.createStatement()) {
+                s.execute("CREATE DATABASE " + name);
+            } catch (SQLException retryEx) {
+                throw new IllegalStateException("Could not create database " + name, retryEx);
+            }
         }
         return instance().getJdbcUrl("postgres", name);
     }
